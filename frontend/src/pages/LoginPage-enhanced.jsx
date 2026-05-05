@@ -1,15 +1,59 @@
 import { useState } from 'react';
-import { Link, Navigate, useLocation } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth.js';
 import { roleDashboardPath } from '../utils/roles.js';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Label } from '../components/ui/Label';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../components/ui/Card';
+import GoogleSignInButton from '../components/GoogleSignInButton.jsx';
+
+function IconCheck() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>
+  );
+}
+
+function IconShield() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg>
+  );
+}
+
+function IconUsers() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+  );
+}
+
+function IconMail() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="20" height="16" rx="2"/>
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+    </svg>
+  );
+}
+
+function IconEnvelopeCheck() {
+  return (
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="4" width="20" height="16" rx="2"/>
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+      <polyline points="9 12 11 14 15 10"/>
+    </svg>
+  );
+}
 
 function LoginPage() {
   const { authState, login } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [form, setForm] = useState({
     email: '',
@@ -38,161 +82,167 @@ function LoginPage() {
     if (!result.success) {
       if (result.status === 403 && result.data?.requires_verification) {
         setUnverifiedEmail(form.email);
-        setFeedback('Your email address has not been verified. Please check your inbox for the verification link.');
+        setFeedback('Your email address has not been verified.');
         return;
       }
 
-      const apiError = result.errors?.[0] || result.message || 'Unable to login.';
+      const apiError = result.errors?.[0] || result.message || 'Unable to sign in.';
       setFeedback(apiError);
       return;
     }
   }
 
+  const handleGoogleSuccess = (data) => {
+    navigate(roleDashboardPath(data.data.role), { replace: true });
+  };
+
+  const handleGoogleError = (error) => {
+    setFeedback(error || 'Google sign-in failed. Please try again.');
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-        {/* Hero Section */}
-        <div className="hidden lg:block">
-          <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full border shadow-sm">
-              <span className="text-2xl">🏠</span>
-              <span className="font-bold text-slate-900">RentEase</span>
+    <div className="auth-page">
+      {/* ── EDITORIAL PANEL (left) ── */}
+      <aside className="auth-editorial">
+        <p className="auth-editorial-kicker">Boarding House Platform</p>
+        <h1>Your dashboard awaits.</h1>
+        <p>
+          Sign in to access your role-based dashboard. Every account is scoped to
+          its role — seekers, parents, owners, and admins each see what they need.
+        </p>
+
+        <div className="auth-editorial-pills">
+          <span>Session Auth</span>
+          <span>RBAC Routes</span>
+          <span>Email Verification</span>
+        </div>
+
+        <div className="auth-editorial-features">
+          <div className="auth-editorial-feature">
+            <div className="auth-editorial-feature-icon"><IconCheck /></div>
+            <div>
+              <h3>Role-based access</h3>
+              <p>Every user lands in the right dashboard for their role.</p>
             </div>
-            
-            <h1 className="text-5xl font-bold text-slate-900 leading-tight">
-              Boarding House Management, Simplified.
-            </h1>
-            
-            <p className="text-lg text-slate-600 leading-relaxed">
-              Streamline your boarding house operations with role-based access for seekers, 
-              parents, owners, and administrators. Modern, secure, and easy to use.
-            </p>
-            
-            <div className="flex flex-wrap gap-3">
-              <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border shadow-sm">
-                <span className="text-green-600">✓</span>
-                <span className="text-sm font-medium text-slate-700">Session Auth</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border shadow-sm">
-                <span className="text-green-600">✓</span>
-                <span className="text-sm font-medium text-slate-700">RBAC Routes</span>
-              </div>
-              <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border shadow-sm">
-                <span className="text-green-600">✓</span>
-                <span className="text-sm font-medium text-slate-700">Email Verification</span>
-              </div>
+          </div>
+          <div className="auth-editorial-feature">
+            <div className="auth-editorial-feature-icon"><IconShield /></div>
+            <div>
+              <h3>Secure sessions</h3>
+              <p>Your session is validated server-side on every request.</p>
+            </div>
+          </div>
+          <div className="auth-editorial-feature">
+            <div className="auth-editorial-feature-icon"><IconMail /></div>
+            <div>
+              <h3>Email verification</h3>
+              <p>New accounts must verify their email before signing in.</p>
+            </div>
+          </div>
+          <div className="auth-editorial-feature">
+            <div className="auth-editorial-feature-icon"><IconUsers /></div>
+            <div>
+              <h3>Parent linking</h3>
+              <p>Parents can monitor their child's boarding arrangement.</p>
             </div>
           </div>
         </div>
+      </aside>
 
-        {/* Login Card */}
-        <Card className="w-full shadow-xl">
-          <CardHeader>
-            <CardTitle className="text-2xl">Sign in to your account</CardTitle>
-            <CardDescription>
-              Enter your credentials to access your dashboard
-            </CardDescription>
-          </CardHeader>
-          
-          <CardContent>
-            {fromPath && (
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-900">
-                  Protected path blocked: <strong>{fromPath}</strong>
-                </p>
+      {/* ── FORM PANEL (right) ── */}
+      <div className="auth-form-panel">
+        <div className="auth-form-card">
+          <div className="auth-form-card-header">
+            <Link to="/" className="auth-brand">
+              RentEase
+              <span className="auth-brand-dot" />
+            </Link>
+            <h2>Sign in to your account</h2>
+            <p>Enter your credentials to continue to your dashboard.</p>
+          </div>
+
+          {fromPath && (
+            <div className="auth-error-banner" style={{ background: '#eff6ff', borderColor: '#bfdbfe', color: '#1e40af', marginBottom: '1.25rem' }}>
+              <strong>Protected path:</strong> {fromPath}
+            </div>
+          )}
+
+          <form onSubmit={onSubmit} className="auth-form">
+            <div className="auth-form-group">
+              <label htmlFor="email">Email address</label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                value={form.email}
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                placeholder="you@example.com"
+                required
+              />
+            </div>
+
+            <div className="auth-form-group">
+              <label htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                value={form.password}
+                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                placeholder="Enter your password"
+                required
+              />
+            </div>
+
+            <div className="auth-form-group">
+              <label htmlFor="role">Sign in as</label>
+              <select
+                id="role"
+                value={form.role}
+                onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+                required
+              >
+                <option value="seeker">Seeker / Boarder</option>
+                <option value="parent">Parent</option>
+                <option value="owner">Owner</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+
+            {feedback && (
+              <div className="auth-error-banner">
+                {feedback}
+                {unverifiedEmail && (
+                  <>
+                    {' '}
+                    <Link to="/resend-verification" state={{ email: unverifiedEmail }}>
+                      Resend verification email →
+                    </Link>
+                  </>
+                )}
               </div>
             )}
 
-            <form onSubmit={onSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  placeholder="your-email@domain.com"
-                  required
-                />
-              </div>
+            <button type="submit" className="auth-btn-primary" disabled={submitting}>
+              {submitting ? 'Signing in...' : 'Sign in'}
+            </button>
+          </form>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  placeholder="Enter your password"
-                  required
-                />
-              </div>
+          <div className="auth-divider">
+            <span>or continue with</span>
+          </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="role">Login As</Label>
-                <select
-                  id="role"
-                  value={form.role}
-                  onChange={(e) => setForm({ ...form, role: e.target.value })}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  required
-                >
-                  <option value="seeker">Seeker / Boarder</option>
-                  <option value="parent">Parent</option>
-                  <option value="owner">Owner</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
+          <GoogleSignInButton onSuccess={handleGoogleSuccess} onError={handleGoogleError} />
 
-              {feedback && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-900 font-medium">{feedback}</p>
-                  {unverifiedEmail && (
-                    <div className="mt-3 space-y-2">
-                      <p className="text-sm text-red-800">
-                        Need a new verification link?
-                      </p>
-                      <Link 
-                        to="/resend-verification" 
-                        state={{ email: unverifiedEmail }}
-                        className="inline-flex items-center text-sm font-medium text-red-900 underline underline-offset-2 hover:text-red-700"
-                      >
-                        Resend Verification Email →
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              )}
+          <p className="auth-footer-link">
+            No account yet?{' '}
+            <Link to="/register">Create one</Link>
+          </p>
 
-              <Button type="submit" className="w-full" disabled={submitting}>
-                {submitting ? 'Signing in...' : 'Sign In'}
-              </Button>
-
-              <div className="flex items-center justify-between text-sm">
-                <Link 
-                  to="/forgot-password"
-                  className="text-slate-600 hover:text-slate-900 underline underline-offset-2"
-                >
-                  Forgot password?
-                </Link>
-                <Link 
-                  to="/register"
-                  className="text-slate-600 hover:text-slate-900 underline underline-offset-2"
-                >
-                  Create account
-                </Link>
-              </div>
-            </form>
-
-            <div className="mt-6 pt-6 border-t">
-              <p className="text-xs text-center text-slate-500">
-                Backend required: Ensure XAMPP Apache/MySQL is running
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+          <div className="auth-two-actions" style={{ marginTop: '1rem' }}>
+            <Link to="/forgot-password">Forgot password?</Link>
+          </div>
+        </div>
       </div>
     </div>
   );
