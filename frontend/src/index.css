@@ -1,43 +1,73 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Playfair+Display:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;700&family=Playfair+Display:wght@400;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --color-forest: #1B4332;
-  --color-primary: #2D6A4F;
-  --color-accent: #52B788;
-  --color-light-green: #B7E4C7;
-  --color-cream: #F8F5F0;
-  --color-mist: #E8EDE6;
-  --color-gold: #D4A853;
-  --color-dark: #2C2C2A;
-  --color-muted: #6B7280;
+  --color-slate: #1C1C1A;
+  --color-ink: #2E2E2B;
+  --color-midtone: #5C5B55;
+  --color-ivory: #F7F5F0;
+  --color-warm-white: #EDEAE3;
+  --color-gold: #C9A96E;
+  --color-gold-light: #E8D9BE;
+  --color-forest: var(--color-slate);
+  --color-primary: var(--color-slate);
+  --color-accent: var(--color-gold);
+  --color-light-green: var(--color-gold-light);
+  --color-cream: var(--color-ivory);
+  --color-mist: var(--bg-surface);
+  --color-dark: var(--color-slate);
+  --color-muted: var(--color-midtone);
   --color-white: #FFFFFF;
-  --color-danger: #D85A30;
+  --color-danger: #A32D2D;
   --color-warning: #BA7517;
   --color-success: #1D9E75;
+  --bg-page: var(--color-ivory);
+  --bg-card: var(--color-warm-white);
+  --bg-surface: #F2EFE8;
+  --text-primary: var(--color-slate);
+  --text-secondary: var(--color-midtone);
+  --text-muted: #9A9890;
+  --text-on-dark: var(--color-ivory);
+  --text-on-gold: #2C1F08;
+  --border-default: rgba(28, 28, 26, 0.10);
+  --border-emphasis: rgba(28, 28, 26, 0.20);
+  --border-strong: rgba(28, 28, 26, 0.35);
+  --status-paid: #1D9E75;
+  --status-paid-bg: #E1F5EE;
+  --status-unpaid: #C06840;
+  --status-unpaid-bg: #FAF0E8;
+  --status-pending: #BA7517;
+  --status-pending-bg: #FAEEDA;
+  --status-rejected: #A32D2D;
+  --status-rejected-bg: #FCEBEB;
+  --status-archived: #888780;
+  --status-archived-bg: #F1EFE8;
   --radius-sm: 6px;
   --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
-  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.08);
-  --shadow-lift: 0 8px 32px rgba(0, 0, 0, 0.14);
-  --radius: 0.5rem;
-  --background: hsl(0, 0%, 100%);
-  --foreground: hsl(240, 10%, 3.9%);
-  --card: hsl(0, 0%, 100%);
-  --card-foreground: hsl(240, 10%, 3.9%);
-  --muted: hsl(240, 4.8%, 95.9%);
-  --muted-foreground: hsl(240, 3.8%, 46.1%);
-  --primary: hsl(240, 5.9%, 10%);
-  --primary-foreground: hsl(0, 0%, 98%);
-  --secondary: hsl(240, 4.8%, 95.9%);
-  --secondary-foreground: hsl(240, 5.9%, 10%);
-  --border: hsl(240, 5.9%, 90%);
-  --ring: hsl(240, 5.9%, 10%);
-  --sidebar-width: 280px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+  --shadow-card: 0 1px 4px rgba(28, 28, 26, 0.06), 0 0 0 0.5px rgba(28, 28, 26, 0.08);
+  --shadow-modal: 0 8px 32px rgba(28, 28, 26, 0.16);
+  --shadow-focus: 0 0 0 3px rgba(201, 169, 110, 0.30);
+  --shadow-lift: var(--shadow-modal);
+  --radius: var(--radius-md);
+  --background: var(--bg-page);
+  --foreground: var(--text-primary);
+  --card: var(--bg-card);
+  --card-foreground: var(--text-primary);
+  --muted: var(--bg-surface);
+  --muted-foreground: var(--text-secondary);
+  --primary: var(--color-slate);
+  --primary-foreground: var(--text-on-dark);
+  --secondary: var(--color-gold-light);
+  --secondary-foreground: var(--text-on-gold);
+  --border: var(--border-default);
+  --ring: rgba(201, 169, 110, 0.55);
+  --sidebar-width: 248px;
   --sidebar-collapsed-width: 80px;
 }
 
@@ -210,6 +240,42 @@ h1, h2, h3, h4, h5, h6 {
   cursor: pointer;
 }
 
+.owner-upload-control:has(input:disabled) {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.owner-upload-preview-block {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.owner-upload-preview-block > span {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.owner-photo-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 0.5rem;
+}
+
+.owner-photo-preview-item {
+  position: relative;
+}
+
+.owner-photo-preview-grid img,
+.owner-photo-preview-item img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border: 1px solid rgba(45, 106, 79, 0.14);
+  border-radius: 8px;
+  background: var(--color-mist);
+}
+
 .amenity-check-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -234,14 +300,325 @@ h1, h2, h3, h4, h5, h6 {
   padding: 0.45rem 0.65rem;
 }
 
+.owner-field-hint {
+  display: block;
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.owner-field-hint.warning {
+  color: var(--color-warning);
+  font-weight: 800;
+}
+
+.modal-content.owner-drawer {
+  width: min(980px, calc(100vw - 2rem));
+  max-width: 980px;
+  max-height: calc(100dvh - 2rem);
+}
+
+.owner-drawer .modal-close {
+  display: grid;
+  place-items: center;
+  font-size: 0;
+}
+
+.owner-drawer .modal-close::before {
+  content: 'X';
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.owner-room-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.owner-room-form .form-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.owner-room-form .owner-room-basic-row {
+  grid-template-columns: minmax(180px, 0.42fr) minmax(0, 1.58fr);
+}
+
+.owner-room-form .form-group {
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.owner-room-form .form-group input,
+.owner-room-form .form-group textarea {
+  min-height: 46px;
+}
+
+.owner-room-form .form-group input.is-readonly {
+  border-color: rgba(186, 117, 23, 0.42);
+  background: rgba(186, 117, 23, 0.08);
+  color: var(--color-dark);
+  cursor: help;
+}
+
+.owner-choice-grid {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.room-type-choice-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.status-choice-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.owner-choice-card {
+  min-width: 0;
+  min-height: 118px;
+  display: grid;
+  align-content: start;
+  gap: 0.42rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(45, 106, 79, 0.16);
+  border-radius: 8px;
+  background: var(--color-white);
+  color: var(--color-dark);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease, background 150ms ease;
+}
+
+.owner-choice-card strong {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--color-primary);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.86rem;
+  line-height: 1.2;
+}
+
+.owner-choice-card small {
+  color: var(--color-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.owner-choice-card:hover,
+.owner-choice-card:focus-visible {
+  outline: none;
+  border-color: rgba(45, 106, 79, 0.48);
+  box-shadow: 0 10px 26px rgba(27, 67, 50, 0.1);
+  transform: translateY(-1px);
+}
+
+.owner-choice-card.active {
+  border-color: rgba(45, 106, 79, 0.72);
+  background: rgba(183, 228, 199, 0.32);
+  box-shadow: inset 0 0 0 1px rgba(45, 106, 79, 0.35);
+}
+
+.owner-help-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.owner-help-strip > span {
+  position: relative;
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 0.32rem;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid rgba(45, 106, 79, 0.16);
+  border-radius: 999px;
+  background: var(--color-white);
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: help;
+}
+
+.owner-help-strip > span.active {
+  border-color: rgba(45, 106, 79, 0.4);
+  background: var(--color-mist);
+  color: var(--color-forest);
+}
+
+.owner-help-strip small {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 0.5rem);
+  z-index: 10;
+  width: min(260px, 80vw);
+  padding: 0.7rem;
+  border: 1px solid rgba(45, 106, 79, 0.18);
+  border-radius: 8px;
+  background: var(--color-forest);
+  color: var(--color-white);
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.45;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.owner-help-strip > span:hover small,
+.owner-help-strip > span:focus small {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.room-amenity-grid {
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+}
+
 .room-card-archived {
   opacity: 0.72;
 }
 
 .review-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.7fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
+}
+
+.reservation-review-modal {
+  width: min(980px, calc(100vw - 2rem));
+  max-width: 980px;
+}
+
+.reservation-review-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(45, 106, 79, 0.14);
+  border-radius: 10px;
+  background: var(--color-mist);
+}
+
+.reservation-review-avatar {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--color-white);
+  color: var(--color-primary);
+}
+
+.reservation-review-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reservation-review-summary span,
+.review-note span {
+  color: var(--color-primary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.reservation-review-card h3 {
+  margin: 0;
+  color: var(--color-forest);
+  font-size: 1.02rem;
+}
+
+.reservation-review-summary h3,
+.reservation-review-summary p {
+  margin: 0.15rem 0 0;
+}
+
+.reservation-review-summary p,
+.reservation-review-rate small,
+.review-note p {
+  color: var(--color-muted);
+}
+
+.reservation-review-rate {
+  display: grid;
+  justify-items: end;
+  gap: 0.15rem;
+  text-align: right;
+}
+
+.reservation-review-rate strong {
+  color: var(--color-forest);
+}
+
+.reservation-review-card {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.review-detail-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.review-detail-list div {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: start;
+  min-height: 36px;
+}
+
+.review-detail-list svg {
+  color: var(--color-primary);
+}
+
+.review-detail-list span {
+  grid-column: 2;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.review-detail-list strong {
+  grid-column: 2;
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: normal;
+  color: var(--color-dark);
+  line-height: 1.35;
+}
+
+.review-document-row,
+.reservation-decision-box {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-mist);
+}
+
+.review-note {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem;
+  border-radius: 8px;
+  background: var(--color-mist);
+}
+
+.review-note p,
+.reservation-decision-box small {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.reservation-decision-box small {
+  color: var(--color-muted);
 }
 
 .tenant-drawer {
@@ -442,6 +819,23 @@ h1, h2, h3, h4, h5, h6 {
   .owner-profile-grid,
   .review-grid {
     grid-template-columns: 1fr;
+  }
+
+  .owner-room-form .form-row,
+  .owner-room-form .owner-room-basic-row,
+  .room-type-choice-grid,
+  .status-choice-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reservation-review-summary {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .reservation-review-rate {
+    justify-items: start;
+    text-align: left;
   }
 
   .owner-preview-panel {
@@ -5981,6 +6375,15 @@ a:focus-visible {
   transform: scale(1.03);
 }
 
+.re-room-media-placeholder {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  background: var(--color-mist);
+  color: var(--color-primary);
+}
+
 .re-room-type,
 .re-room-media .re-status-pill {
   position: absolute;
@@ -6392,8 +6795,267 @@ a:focus-visible {
 
 .re-results-line {
   margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   color: var(--color-muted);
   font-weight: 700;
+}
+
+.re-property-grid,
+.browse-property-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.re-property-browse-card,
+.browse-property-card,
+.browse-room-panel,
+.browse-filter-card {
+  border: 1px solid rgba(45, 106, 79, 0.12);
+  border-radius: 8px;
+  background: var(--color-white);
+  box-shadow: var(--shadow-card);
+}
+
+.re-property-browse-card,
+.browse-property-card {
+  overflow: hidden;
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.re-property-browse-card:hover,
+.browse-property-card:hover,
+.re-property-browse-card.active,
+.browse-property-card.active {
+  transform: translateY(-3px);
+  border-color: rgba(45, 106, 79, 0.28);
+  box-shadow: var(--shadow-lift);
+}
+
+.re-property-media,
+.browse-property-photo {
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  background: var(--color-mist);
+  color: var(--color-primary);
+}
+
+.re-property-media img,
+.browse-property-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.re-property-media > span,
+.browse-property-photo > span {
+  position: absolute;
+  left: 0.75rem;
+  top: 0.75rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--color-primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.re-property-body,
+.browse-property-body {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+}
+
+.re-property-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.re-property-heading h2,
+.browse-property-body h2 {
+  margin: 0;
+  color: var(--color-forest);
+  font-size: 1.18rem;
+}
+
+.re-property-heading p,
+.browse-property-body p,
+.re-property-copy {
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.5;
+}
+
+.re-property-heading p,
+.browse-property-body p {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.re-property-heading strong,
+.browse-property-body > strong {
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+
+.re-property-metrics,
+.browse-property-metrics,
+.re-property-chips,
+.browse-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.re-property-metrics span,
+.browse-property-metrics span,
+.re-property-chips span,
+.browse-chip-row span {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: var(--color-mist);
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.re-property-room-section {
+  padding-top: 0;
+}
+
+.browse-filter-card {
+  display: grid;
+  grid-template-columns: 1.5fr repeat(2, minmax(170px, 0.75fr)) auto auto;
+  gap: 0.75rem;
+  align-items: end;
+  padding: 1rem;
+}
+
+.browse-filter-card label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.browse-filter-card input,
+.browse-filter-card select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(45, 106, 79, 0.2);
+  border-radius: 8px;
+  background: var(--color-white);
+  color: var(--color-dark);
+  padding: 0 0.75rem;
+}
+
+.browse-search-field {
+  position: relative;
+}
+
+.browse-search-field svg {
+  position: absolute;
+  left: 0.75rem;
+  bottom: 12px;
+  color: var(--color-muted);
+}
+
+.browse-search-field input {
+  padding-left: 2.25rem;
+}
+
+.browse-results-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  color: var(--color-muted);
+  font-weight: 800;
+}
+
+.browse-room-panel {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+}
+
+.browse-room-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.browse-room-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto auto;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.8rem;
+  border: 1px solid rgba(45, 106, 79, 0.12);
+  border-radius: 8px;
+  background: var(--color-mist);
+}
+
+.browse-room-thumb {
+  width: 92px;
+  aspect-ratio: 4 / 3;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--color-white);
+  color: var(--color-primary);
+}
+
+.browse-room-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.browse-room-copy {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.browse-room-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.browse-room-rate {
+  color: var(--color-forest);
+  white-space: nowrap;
+}
+
+.browse-room-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.re-gallery-placeholder {
+  display: grid;
+  min-height: 360px;
+  place-items: center;
+  background: var(--color-mist);
+  color: var(--color-primary);
 }
 
 .re-empty-state {
@@ -7252,6 +7914,10 @@ a:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .browse-filter-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .re-detail-layout,
   .re-auth-page {
     grid-template-columns: 1fr;
@@ -7361,6 +8027,39 @@ a:focus-visible {
 
   .re-room-filter-bar {
     grid-template-columns: 1fr;
+  }
+
+  .browse-filter-card,
+  .browse-room-row,
+  .re-property-heading,
+  .browse-results-line,
+  .re-results-line {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .browse-room-thumb {
+    width: min(220px, 100%);
+  }
+
+  .browse-room-actions {
+    justify-content: stretch;
+  }
+
+  .browse-room-actions button {
+    flex: 1 1 140px;
+  }
+
+  .review-detail-list div {
+    grid-template-columns: 20px minmax(0, 1fr);
+  }
+
+  .review-detail-list div span {
+    grid-column: 2;
+  }
+
+  .review-detail-list div strong {
+    grid-column: 2;
   }
 
   .re-detail-title {
@@ -7655,6 +8354,101 @@ a:focus-visible {
   border-radius: 8px;
 }
 
+.re-file-remove {
+  width: fit-content;
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0 0.65rem;
+  border: 1px solid rgba(216, 90, 48, 0.24);
+  border-radius: 8px;
+  background: rgba(216, 90, 48, 0.1);
+  color: var(--color-danger);
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.upload-area.dragging {
+  border-color: var(--color-primary);
+  background: rgba(45, 106, 79, 0.08);
+}
+
+.photo-converter-button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.85rem;
+  border: 1px solid rgba(45, 106, 79, 0.22);
+  border-radius: 8px;
+  background: var(--color-white);
+  color: var(--color-primary);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.photo-converter-button:disabled,
+.add-more.disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+.re-selected-photo-preview {
+  position: relative;
+  display: grid;
+  gap: 0.35rem;
+  width: min(220px, 100%);
+}
+
+.re-preview-remove,
+.owner-photo-preview-item button {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(216, 90, 48, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--color-danger);
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+}
+
+.re-selected-photo-preview img {
+  width: 100%;
+  max-height: 170px;
+  object-fit: cover;
+  border: 1px solid rgba(45, 106, 79, 0.14);
+  border-radius: 8px;
+  background: var(--color-mist);
+}
+
+.re-selected-photo-preview span {
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.re-upload-note {
+  display: block;
+  color: var(--muted-foreground);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.re-file-selected-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
 .re-form-error,
 .seeker-limit-note {
   color: var(--color-danger);
@@ -7666,19 +8460,33 @@ a:focus-visible {
   inset: 0;
   z-index: 1100;
   display: grid;
-  place-items: center;
+  align-items: start;
+  justify-items: center;
   padding: 1rem;
   background: rgba(27, 67, 50, 0.38);
+  overflow-y: auto;
 }
 
 .re-modal {
   width: min(520px, 100%);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   display: grid;
   gap: 1rem;
   padding: 1.4rem;
   border-radius: var(--radius-md);
   background: var(--color-white);
   box-shadow: var(--shadow-lift);
+}
+
+.seeker-payment-modal {
+  width: min(650px, 100%);
+}
+
+.seeker-payment-modal .re-file-upload img {
+  width: min(220px, 100%);
+  max-height: 140px;
 }
 
 .re-modal h2 {
@@ -7718,6 +8526,15 @@ a:focus-visible {
 .seeker-room-photo {
   min-height: 300px;
   margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.seeker-room-photo img,
+.guardian-room-photo img,
+.seeker-room-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .seeker-detail-title {
@@ -7737,6 +8554,12 @@ a:focus-visible {
   color: var(--color-forest);
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 1.7rem;
+}
+
+.seeker-room-title-actions {
+  display: grid;
+  justify-items: end;
+  gap: 0.6rem;
 }
 
 .seeker-detail-section {
@@ -7795,6 +8618,11 @@ a:focus-visible {
 .seeker-rent-banner.unpaid {
   background: rgba(216, 90, 48, 0.13);
   color: var(--color-danger);
+}
+
+.seeker-rent-banner.pending {
+  background: rgba(186, 117, 23, 0.13);
+  color: var(--color-warning);
 }
 
 .seeker-rent-banner.none {
@@ -8117,4 +8945,1801 @@ a:focus-visible {
     background: var(--color-forest);
     color: var(--color-white);
   }
+}
+
+/* Theme controls and dark mode */
+html.light {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+  --background: #07110f;
+  --foreground: #edf7f1;
+  --card: #111f1a;
+  --card-foreground: #edf7f1;
+  --muted: #172a23;
+  --muted-foreground: #a9bbb2;
+  --primary: #74c69d;
+  --primary-foreground: #06110d;
+  --secondary: #1a3028;
+  --secondary-foreground: #edf7f1;
+  --destructive-soft: rgba(216, 90, 48, 0.16);
+  --border: rgba(183, 228, 199, 0.16);
+  --ring: rgba(116, 198, 157, 0.48);
+  --sidebar: #0b1713;
+  --sidebar-hover: rgba(183, 228, 199, 0.09);
+  --color-cream: #07110f;
+  --color-mist: #162720;
+  --color-muted: #a9bbb2;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 18px 42px rgba(0, 0, 0, 0.32);
+  --shadow-card: 0 12px 30px rgba(0, 0, 0, 0.26);
+  --shadow-lift: 0 22px 54px rgba(0, 0, 0, 0.38);
+  --dark-bg: #07110f;
+  --dark-surface: #111f1a;
+  --dark-surface-2: #162720;
+  --dark-surface-3: #1d342b;
+  --dark-border: rgba(183, 228, 199, 0.16);
+  --dark-text: #edf7f1;
+  --dark-muted: #a9bbb2;
+  --dark-heading: #d8f3dc;
+  --dark-accent: #74c69d;
+  --lp-bg: #07110f;
+  --lp-text: #edf7f1;
+  --lp-muted: #a9bbb2;
+  --lp-card: #111f1a;
+  --lp-card-border: rgba(183, 228, 199, 0.16);
+  --lp-accent: #d4a853;
+  --lp-accent-hover: #e3bd6d;
+}
+
+html.dark body {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(82, 183, 136, 0.1), transparent 28%),
+    radial-gradient(circle at 95% 3%, rgba(212, 168, 83, 0.08), transparent 24%),
+    var(--dark-bg);
+  color: var(--dark-text);
+}
+
+.theme-toggle {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0 0.75rem;
+  border: 1px solid rgba(45, 106, 79, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--color-forest);
+  font-size: 0.82rem;
+  font-weight: 800;
+  box-shadow: 0 6px 18px rgba(27, 67, 50, 0.08);
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.theme-toggle.compact {
+  width: 38px;
+  padding: 0;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-1px);
+  border-color: rgba(45, 106, 79, 0.38);
+  background: var(--color-white);
+}
+
+.theme-auth-row,
+.guardian-topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.theme-auth-row .re-eyebrow {
+  margin-bottom: 0;
+}
+
+.re-public-subnav .theme-toggle,
+.re-nav-actions .theme-toggle {
+  flex: 0 0 auto;
+}
+
+.re-mobile-menu .theme-toggle {
+  justify-content: center;
+}
+
+html.dark .theme-toggle {
+  border-color: var(--dark-border);
+  background: rgba(22, 39, 32, 0.92);
+  color: var(--dark-heading);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.24);
+}
+
+html.dark .theme-toggle:hover {
+  border-color: rgba(116, 198, 157, 0.5);
+  background: var(--dark-surface-3);
+}
+
+html.dark .re-public-nav:not(.is-scrolled) .theme-toggle {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-white);
+}
+
+html.dark :is(
+  .modern-shell,
+  .modern-main,
+  .re-public-page,
+  .re-auth-page,
+  .complete-profile-page,
+  .guardian-page,
+  .landing-page,
+  .auth-page
+) {
+  background: var(--dark-bg);
+  color: var(--dark-text);
+}
+
+html.dark :is(
+  .modern-topbar,
+  .stat-card,
+  .module-card,
+  .tenant-card,
+  .rooms-table table,
+  .payments-table table,
+  .income-details table,
+  .data-table,
+  .modal-content,
+  .re-modal,
+  .re-auth-card,
+  .auth-card,
+  .auth-form-card,
+  .auth-verification-card,
+  .complete-profile-card,
+  .status-panel,
+  .re-simple-state-card,
+  .property-card,
+  .re-property-browse-card,
+  .re-room-card,
+  .re-detail-main,
+  .re-booking-card,
+  .re-location-card,
+  .re-house-rules,
+  .re-related-rooms,
+  .re-room-filter-bar,
+  .re-trust-strip article,
+  .re-feature-rows article,
+  .feature-card,
+  .owner-preview-panel,
+  .owner-choice-card,
+  .owner-checkbox,
+  .owner-upload-control,
+  .owner-upload-preview-block,
+  .reservation-review-summary,
+  .reservation-review-card,
+  .review-note,
+  .reservation-decision-box,
+  .guardian-shell,
+  .guardian-card,
+  .guardian-error-card,
+  .account-block,
+  .brand-block,
+  .quick-card,
+  .re-table-wrap,
+  .re-file-upload label,
+  .re-selected-photo-preview,
+  .profile-photo-field,
+  .seeker-status-card,
+  .seeker-welcome,
+  .seeker-info-card,
+  .seeker-room-card,
+  .seeker-reservation-card,
+  .seeker-document-card,
+  .seeker-payment-card
+) {
+  border-color: var(--dark-border);
+  background: var(--dark-surface);
+  color: var(--dark-text);
+  box-shadow: var(--shadow-card);
+}
+
+html.dark :is(
+  .modern-sidebar,
+  .re-mobile-menu
+) {
+  background: #0a1813;
+  color: var(--color-white);
+}
+
+html.dark .modern-topbar {
+  background: rgba(17, 31, 26, 0.92);
+  backdrop-filter: blur(18px);
+}
+
+html.dark :is(
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  .topbar-title h2,
+  .module-card h3,
+  .stat-value,
+  .room-header h3,
+  .property-title,
+  .property-price,
+  .re-auth-card h2,
+  .re-section-heading h2,
+  .re-detail-title h1,
+  .re-booking-rate strong,
+  .re-property-heading h2,
+  .re-room-card-heading h3,
+  .re-room-card-heading strong,
+  .guardian-topbar strong,
+  .guardian-card h2,
+  .guardian-card h3,
+  .complete-profile-card h1
+) {
+  color: var(--dark-heading);
+}
+
+html.dark :is(
+  p,
+  li,
+  td,
+  dd,
+  label,
+  .topbar-title p,
+  .module-card p,
+  .module-card li,
+  .stat-label,
+  .toolbar-sub,
+  .account-email,
+  .property-description,
+  .property-location,
+  .re-property-copy,
+  .re-detail-copy,
+  .re-room-meta,
+  .re-auth-card > p,
+  .re-auth-switch,
+  .re-role-hint,
+  .owner-field-hint,
+  .review-detail-list span,
+  .review-note p,
+  .guardian-definition-list dt,
+  .guardian-history span,
+  .seeker-muted
+) {
+  color: var(--dark-muted);
+}
+
+html.dark :is(
+  input,
+  select,
+  textarea,
+  .form-stack input,
+  .form-stack select,
+  .form-group input,
+  .form-group select,
+  .form-group textarea,
+  .re-input-with-icon,
+  .re-input-with-icon input,
+  .re-search-field,
+  .re-search-field input,
+  .auth-form-group input,
+  .auth-form-group select
+) {
+  border-color: var(--dark-border);
+  background: #0d1915;
+  color: var(--dark-text);
+}
+
+html.dark :is(input, textarea)::placeholder {
+  color: rgba(169, 187, 178, 0.72);
+}
+
+html.dark select option {
+  background: #0d1915;
+  color: var(--dark-text);
+}
+
+html.dark :is(
+  .button-light,
+  .button-secondary,
+  .btn-secondary,
+  .re-btn-secondary,
+  .photo-converter-button,
+  .filter-tabs button,
+  .view-toggle button,
+  .owner-toolbar button
+) {
+  border-color: var(--dark-border);
+  background: var(--dark-surface-2);
+  color: var(--dark-heading);
+}
+
+html.dark :is(
+  .button-light:hover:enabled,
+  .button-secondary:hover:enabled,
+  .btn-secondary:hover:enabled,
+  .re-btn-secondary:hover:not(:disabled),
+  .filter-tabs button:hover,
+  .view-toggle button:hover
+) {
+  background: var(--dark-surface-3);
+  color: var(--dark-heading);
+}
+
+html.dark :is(
+  .button-primary,
+  .btn-primary,
+  .re-btn-primary
+) {
+  background: #2f8d68;
+  color: var(--color-white);
+}
+
+html.dark :is(
+  .button-primary:hover:enabled,
+  .btn-primary:hover:enabled,
+  .re-btn-primary:hover:not(:disabled)
+) {
+  background: #3ca878;
+  color: var(--color-white);
+}
+
+html.dark :is(.re-btn-gold, .lp-btn-primary, .auth-btn-primary) {
+  background: var(--color-gold);
+  color: #1f2933;
+}
+
+html.dark :is(.re-btn-ghost, .lp-btn-outline, .auth-verification-actions .auth-btn-outline) {
+  color: var(--dark-heading);
+}
+
+html.dark .re-public-nav.is-scrolled {
+  background: rgba(10, 24, 19, 0.92);
+  color: var(--dark-text);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.28);
+}
+
+html.dark .re-public-nav.is-scrolled .re-brand,
+html.dark .re-public-subnav .re-brand,
+html.dark .re-brand {
+  color: var(--dark-heading);
+}
+
+html.dark .re-public-nav.is-scrolled .re-brand span,
+html.dark .re-brand span {
+  background: var(--dark-surface-3);
+  color: var(--dark-heading);
+}
+
+html.dark :is(.re-nav-links a, .re-public-subnav nav a, .re-breadcrumb a) {
+  color: var(--dark-text);
+}
+
+html.dark :is(.re-nav-links a:hover, .re-public-subnav nav a:hover, .re-breadcrumb a:hover) {
+  color: var(--color-gold);
+}
+
+html.dark .re-page-hero {
+  background: linear-gradient(135deg, #0a1813, #143526);
+  color: var(--color-white);
+}
+
+html.dark .re-hero::before {
+  background:
+    linear-gradient(90deg, rgba(7, 17, 15, 0.9), rgba(7, 17, 15, 0.56)),
+    linear-gradient(0deg, rgba(7, 17, 15, 0.35), rgba(7, 17, 15, 0.08));
+}
+
+html.dark :is(.re-section, .re-feature-rows, .re-detail-shell) {
+  color: var(--dark-text);
+}
+
+html.dark :is(
+  .re-property-metrics span,
+  .re-property-chips span,
+  .re-room-meta span,
+  .re-amenities-grid article,
+  .owner-chip-list span,
+  .room-badge,
+  .toolbar-badge,
+  .user-badge
+) {
+  border-color: var(--dark-border);
+  background: var(--dark-surface-2);
+  color: var(--dark-heading);
+}
+
+html.dark :is(.owner-choice-card.active, .filter-tabs button.active, .view-toggle button.active, .re-role-tabs button.active) {
+  border-color: rgba(116, 198, 157, 0.58);
+  background: rgba(82, 183, 136, 0.16);
+  color: var(--dark-heading);
+}
+
+html.dark :is(.owner-choice-card strong, .owner-checkbox span, .re-eyebrow) {
+  color: var(--dark-accent);
+}
+
+html.dark .owner-room-form .form-group input.is-readonly {
+  border-color: rgba(212, 168, 83, 0.5);
+  background: rgba(212, 168, 83, 0.12);
+  color: var(--dark-text);
+}
+
+html.dark :is(.data-table thead, .rooms-table th, .payments-table th, .income-details th, .re-data-table th) {
+  background: var(--dark-surface-2);
+  color: var(--dark-heading);
+}
+
+html.dark :is(.data-table th, .data-table td, .re-data-table th, .re-data-table td) {
+  border-bottom-color: var(--dark-border);
+}
+
+html.dark :is(.data-table tbody tr:hover, .rooms-table tbody tr:hover, .payments-table tbody tr:hover, .income-details tbody tr:hover, .re-data-table tbody tr:hover) {
+  background: rgba(183, 228, 199, 0.08);
+}
+
+html.dark :is(.modal-overlay, .re-modal-backdrop) {
+  background: rgba(3, 10, 8, 0.72);
+}
+
+html.dark .re-divider::before,
+html.dark .auth-divider::before,
+html.dark .auth-divider::after {
+  background: var(--dark-border);
+  border-color: var(--dark-border);
+}
+
+html.dark :is(.re-divider span, .auth-divider span) {
+  background: var(--dark-surface);
+  color: var(--dark-muted);
+}
+
+html.dark :is(.notice-panel, .re-notice-panel, .mini-feedback, .mini-success, .re-success-panel) {
+  border-color: rgba(116, 198, 157, 0.22);
+  background: rgba(82, 183, 136, 0.13);
+  color: var(--dark-heading);
+}
+
+html.dark :is(.error-panel, .re-error-panel, .auth-error-banner) {
+  border-color: rgba(216, 90, 48, 0.28);
+  background: rgba(216, 90, 48, 0.16);
+  color: #ffb4a2;
+}
+
+html.dark :is(
+  .pill-success,
+  .status-available,
+  .status-approved,
+  .status-paid,
+  .re-status-available,
+  .re-status-approved,
+  .re-status-paid,
+  .guardian-rent-status.paid
+) {
+  background: rgba(82, 183, 136, 0.16);
+  color: #9be7bd;
+}
+
+html.dark :is(
+  .pill-warning,
+  .status-pending,
+  .re-status-pending,
+  .guardian-rent-status.unpaid
+) {
+  background: rgba(212, 168, 83, 0.16);
+  color: #f7d68b;
+}
+
+html.dark :is(
+  .pill-danger,
+  .status-occupied,
+  .status-rejected,
+  .status-unpaid,
+  .re-status-occupied,
+  .re-status-rejected,
+  .re-status-unpaid
+) {
+  background: rgba(216, 90, 48, 0.16);
+  color: #ffb4a2;
+}
+
+html.dark :is(.pill-neutral, .status-archived, .re-status-archived, .re-status-no_record) {
+  background: var(--dark-surface-2);
+  color: var(--dark-muted);
+}
+
+html.dark .seeker-bottom-nav {
+  border-color: var(--dark-border);
+  background: rgba(17, 31, 26, 0.94);
+}
+
+html.dark .seeker-bottom-link {
+  color: var(--dark-muted);
+}
+
+html.dark .seeker-bottom-link.active {
+  background: rgba(82, 183, 136, 0.2);
+  color: var(--dark-heading);
+}
+
+html.dark :is(.re-gallery, .re-gallery-placeholder, .owner-room-photo, .owner-cover-preview, .guardian-room-photo, .property-image-placeholder, .re-room-media-placeholder) {
+  background: var(--dark-surface-2);
+  color: var(--dark-accent);
+}
+
+html.dark img {
+  color: var(--dark-muted);
+}
+
+@media (max-width: 767px) {
+  .theme-toggle:not(.compact) span {
+    display: none;
+  }
+
+  .theme-toggle:not(.compact) {
+    width: 38px;
+    padding: 0;
+  }
+
+  .re-public-subnav nav {
+    gap: 0.7rem;
+  }
+}
+
+/* RentEase Design System - Palette 01: Ivory & Slate */
+:root,
+html.light,
+html.dark {
+  color-scheme: light;
+  --color-slate: #1C1C1A;
+  --color-ink: #2E2E2B;
+  --color-midtone: #5C5B55;
+  --color-ivory: #F7F5F0;
+  --color-warm-white: #EDEAE3;
+  --color-gold: #C9A96E;
+  --color-gold-light: #E8D9BE;
+  --color-forest: var(--color-slate);
+  --color-primary: var(--color-slate);
+  --color-accent: var(--color-gold);
+  --color-light-green: var(--color-gold-light);
+  --color-cream: var(--color-ivory);
+  --color-mist: #F2EFE8;
+  --color-dark: var(--color-slate);
+  --color-muted: var(--color-midtone);
+  --color-white: #FFFFFF;
+  --color-danger: #A32D2D;
+  --color-warning: #BA7517;
+  --color-success: #1D9E75;
+  --bg-page: var(--color-ivory);
+  --bg-card: var(--color-warm-white);
+  --bg-surface: #F2EFE8;
+  --text-primary: var(--color-slate);
+  --text-secondary: var(--color-midtone);
+  --text-muted: #9A9890;
+  --text-on-dark: var(--color-ivory);
+  --text-on-gold: #2C1F08;
+  --border-default: rgba(28, 28, 26, 0.10);
+  --border-emphasis: rgba(28, 28, 26, 0.20);
+  --border-strong: rgba(28, 28, 26, 0.35);
+  --status-paid: #1D9E75;
+  --status-paid-bg: #E1F5EE;
+  --status-unpaid: #C06840;
+  --status-unpaid-bg: #FAF0E8;
+  --status-pending: #BA7517;
+  --status-pending-bg: #FAEEDA;
+  --status-rejected: #A32D2D;
+  --status-rejected-bg: #FCEBEB;
+  --status-archived: #888780;
+  --status-archived-bg: #F1EFE8;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+  --shadow-card: 0 1px 4px rgba(28, 28, 26, 0.06), 0 0 0 0.5px rgba(28, 28, 26, 0.08);
+  --shadow-modal: 0 8px 32px rgba(28, 28, 26, 0.16);
+  --shadow-focus: 0 0 0 3px rgba(201, 169, 110, 0.30);
+  --shadow-lift: var(--shadow-modal);
+  --radius: var(--radius-md);
+  --background: var(--bg-page);
+  --foreground: var(--text-primary);
+  --card: var(--bg-card);
+  --card-foreground: var(--text-primary);
+  --muted: var(--bg-surface);
+  --muted-foreground: var(--text-secondary);
+  --primary: var(--color-slate);
+  --primary-foreground: var(--text-on-dark);
+  --secondary: var(--color-gold-light);
+  --secondary-foreground: var(--text-on-gold);
+  --border: var(--border-default);
+  --ring: rgba(201, 169, 110, 0.55);
+  --sidebar-width: 248px;
+  --sidebar-collapsed-width: 80px;
+  --dark-bg: var(--bg-page);
+  --dark-surface: var(--bg-card);
+  --dark-surface-2: var(--bg-surface);
+  --dark-surface-3: var(--color-gold-light);
+  --dark-border: var(--border-default);
+  --dark-text: var(--text-primary);
+  --dark-muted: var(--text-secondary);
+  --dark-heading: var(--text-primary);
+  --dark-accent: var(--color-gold);
+  --lp-bg: var(--bg-page);
+  --lp-text: var(--text-primary);
+  --lp-muted: var(--text-secondary);
+  --lp-card: var(--bg-card);
+  --lp-card-border: var(--border-default);
+  --lp-accent: var(--color-gold);
+  --lp-accent-hover: #D4B87A;
+}
+
+html.dark body,
+body {
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  line-height: 1.7;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.topbar-title h2,
+.module-card h3,
+.stat-value,
+.quick-value,
+.page-header h1,
+.report-section h2,
+.re-section-heading h2,
+.re-detail-title h1,
+.re-room-card-heading h3,
+.re-property-heading h2,
+.property-title,
+.room-header h3,
+.guardian-card h2,
+.complete-profile-card h1 {
+  font-family: 'Playfair Display', Georgia, serif;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+p,
+li,
+td,
+dd,
+label,
+.topbar-title p,
+.module-card p,
+.module-card li,
+.stat-label,
+.toolbar-sub,
+.caption,
+.owner-field-hint,
+.re-property-copy,
+.re-detail-copy,
+.property-description,
+.guardian-definition-list dt,
+.seeker-muted {
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text-secondary);
+}
+
+button,
+input,
+select,
+textarea,
+table,
+.status-pill,
+.re-status-pill {
+  font-family: 'DM Sans', sans-serif;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+button:focus-visible,
+a:focus-visible {
+  outline: 0;
+  border-color: var(--color-gold) !important;
+  box-shadow: var(--shadow-focus);
+}
+
+.modern-shell,
+.modern-main,
+.complete-profile-page,
+.guardian-page,
+.re-public-page,
+.re-auth-page,
+.landing-page,
+.auth-page {
+  background: var(--bg-page);
+  color: var(--text-primary);
+}
+
+.modern-main {
+  background: var(--bg-page);
+}
+
+.modern-sidebar,
+html.dark .modern-sidebar {
+  width: var(--sidebar-width);
+  background: var(--color-slate);
+  color: var(--text-on-dark);
+  box-shadow: none;
+}
+
+.sidebar-header,
+.sidebar-footer {
+  border-color: rgba(247, 245, 240, 0.12);
+}
+
+.brand-text h1,
+.re-brand.light,
+.modern-sidebar .user-name {
+  color: var(--text-on-dark);
+}
+
+.brand-text p {
+  color: var(--color-gold);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.64rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.brand-icon,
+.user-avatar {
+  background: var(--color-gold-light);
+  color: var(--text-on-gold);
+}
+
+.nav-item {
+  gap: 10px;
+  padding: 10px 16px;
+  border-left: 2px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 400;
+}
+
+.nav-item:hover {
+  background: rgba(247, 245, 240, 0.06);
+  color: var(--bg-card);
+}
+
+.nav-item.active {
+  border-left-color: var(--color-gold);
+  background: rgba(201, 169, 110, 0.15);
+  color: var(--text-on-dark);
+}
+
+.nav-item.active .nav-icon {
+  color: var(--color-gold);
+}
+
+.sidebar-toggle,
+.logout-btn {
+  border-color: rgba(247, 245, 240, 0.15);
+  background: rgba(247, 245, 240, 0.06);
+  color: var(--text-muted);
+}
+
+.logout-btn:hover:not(:disabled) {
+  color: var(--status-unpaid);
+  background: rgba(192, 104, 64, 0.12);
+}
+
+.modern-topbar,
+.module-card,
+.stat-card,
+.quick-card,
+.tenant-card,
+.owner-preview-panel,
+.auth-card,
+.re-auth-card,
+.complete-profile-card,
+.guardian-card,
+.guardian-shell,
+.guardian-error-card,
+.re-simple-state-card,
+.property-card,
+.re-property-browse-card,
+.re-room-card,
+.re-booking-card,
+.re-detail-main,
+.re-location-card,
+.re-house-rules,
+.re-related-rooms,
+.re-room-filter-bar,
+.re-trust-strip article,
+.re-feature-rows article,
+.owner-choice-card,
+.owner-checkbox,
+.reservation-review-summary,
+.reservation-review-card,
+.review-note,
+.re-table-wrap,
+.modal-content,
+.re-modal {
+  border: 0.5px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-card);
+}
+
+.modern-topbar {
+  min-height: 64px;
+  background: #FFFFFF;
+  border-radius: var(--radius-lg);
+}
+
+.stat-card,
+.quick-card,
+.re-stat-card {
+  padding: 20px 24px;
+  border-left: 0.5px solid var(--border-default);
+  background: var(--bg-card);
+}
+
+.stat-label,
+.quick-label,
+.re-stat-card p {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.stat-value,
+.quick-value,
+.re-stat-card strong,
+.seeker-rent-summary strong,
+.price-display {
+  color: var(--text-primary);
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: clamp(1.8rem, 3vw, 2.25rem);
+  font-weight: 700;
+}
+
+.re-public-nav,
+.lp-nav {
+  min-height: 64px;
+  background: var(--color-slate);
+  color: var(--text-on-dark);
+}
+
+.re-public-nav.is-scrolled,
+html.dark .re-public-nav.is-scrolled {
+  background: var(--color-slate);
+  color: var(--text-on-dark);
+  box-shadow: none;
+}
+
+.re-public-nav .re-brand,
+.re-public-nav.is-scrolled .re-brand,
+.re-public-subnav .re-brand,
+.re-brand {
+  color: var(--text-primary);
+}
+
+.re-public-nav .re-brand,
+.re-public-nav.is-scrolled .re-brand,
+.re-public-nav:not(.is-scrolled) .re-brand {
+  color: var(--text-on-dark);
+}
+
+.re-public-nav .re-brand span,
+.re-public-nav.is-scrolled .re-brand span,
+.re-brand span {
+  background: var(--color-gold);
+  color: var(--text-on-gold);
+}
+
+.re-nav-links a,
+.re-public-subnav nav a {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  font-weight: 400;
+  transition: color 0.2s ease;
+}
+
+.re-public-nav .re-nav-links a,
+.re-public-nav.is-scrolled .re-nav-links a {
+  color: var(--text-muted);
+}
+
+.re-nav-links a:hover,
+.re-public-subnav nav a:hover,
+.re-public-nav .re-nav-links a:hover {
+  color: var(--text-on-dark);
+}
+
+.re-public-subnav {
+  color: var(--text-primary);
+}
+
+.re-public-subnav nav a:hover {
+  color: var(--color-slate);
+}
+
+.re-hero::before {
+  background: rgba(28, 28, 26, 0.50);
+}
+
+.re-hero-content h1 {
+  max-width: 700px;
+  color: var(--text-on-dark);
+  font-size: clamp(3.25rem, 8vw, 3.75rem);
+  line-height: 1.1;
+}
+
+.re-hero-content p {
+  color: rgba(237, 234, 227, 0.85);
+  font-size: 1.125rem;
+}
+
+.re-section,
+.re-detail-shell {
+  width: min(1280px, calc(100% - 2rem));
+}
+
+.re-section:nth-of-type(even),
+.re-feature-rows article:nth-child(even) {
+  background: var(--bg-card);
+}
+
+.re-page-hero {
+  background: var(--color-slate);
+  color: var(--text-on-dark);
+}
+
+.re-page-hero p,
+.re-page-hero h1,
+.re-page-hero .re-eyebrow {
+  color: var(--text-on-dark);
+}
+
+.re-btn,
+.button-primary,
+.button-secondary,
+.button-light,
+.btn-primary,
+.btn-secondary,
+.btn-danger,
+.btn-success,
+.photo-converter-button,
+.theme-toggle {
+  min-height: 40px;
+  border-radius: var(--radius-md);
+  font-size: 0.84rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.re-btn:active,
+.button-primary:active,
+.button-secondary:active,
+.button-light:active,
+.btn-primary:active,
+.btn-secondary:active {
+  transform: scale(0.98);
+}
+
+.button-primary,
+.btn-primary,
+.re-btn-primary,
+.re-room-actions button {
+  border: 1px solid var(--color-slate);
+  background: var(--color-slate);
+  color: var(--text-on-dark);
+}
+
+.button-primary:hover:enabled,
+.btn-primary:hover:enabled,
+.re-btn-primary:hover:not(:disabled),
+.re-room-actions button:hover:not(:disabled) {
+  background: var(--color-ink);
+  color: var(--text-on-dark);
+}
+
+.re-btn-gold,
+.btn-success,
+.lp-btn-primary,
+.auth-btn-primary {
+  border-color: var(--color-gold);
+  background: var(--color-gold);
+  color: var(--text-on-gold);
+}
+
+.re-btn-gold:hover:not(:disabled),
+.btn-success:hover:enabled,
+.lp-btn-primary:hover,
+.auth-btn-primary:hover:not(:disabled) {
+  background: #D4B87A;
+  border-color: #D4B87A;
+  color: var(--text-on-gold);
+}
+
+.button-secondary,
+.button-light,
+.btn-secondary,
+.re-btn-secondary,
+.photo-converter-button,
+.theme-toggle {
+  border: 1px solid var(--color-slate);
+  background: transparent;
+  color: var(--color-slate);
+}
+
+.button-secondary:hover:enabled,
+.button-light:hover:enabled,
+.btn-secondary:hover:enabled,
+.re-btn-secondary:hover:not(:disabled),
+.photo-converter-button:hover:not(:disabled),
+.theme-toggle:hover {
+  background: var(--color-slate);
+  color: var(--text-on-dark);
+}
+
+.btn-danger,
+.button-light.danger,
+.re-file-remove {
+  border: 1px solid var(--status-rejected);
+  background: transparent;
+  color: var(--status-rejected);
+}
+
+.btn-danger:hover:enabled,
+.button-light.danger:hover:enabled,
+.re-file-remove:hover {
+  background: var(--status-rejected-bg);
+  color: var(--status-rejected);
+}
+
+.re-btn-ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.re-btn-ghost:hover:not(:disabled) {
+  background: rgba(247, 245, 240, 0.10);
+  color: var(--text-on-dark);
+}
+
+.re-btn-outline-light {
+  border: 1px solid rgba(247, 245, 240, 0.5);
+  background: transparent;
+  color: var(--text-on-dark);
+}
+
+.re-btn-outline-light:hover:not(:disabled) {
+  background: rgba(247, 245, 240, 0.10);
+}
+
+input,
+select,
+textarea,
+.form-stack input,
+.form-stack select,
+.form-group input,
+.form-group select,
+.form-group textarea,
+.re-input-with-icon,
+.re-search-field,
+.auth-form-group input,
+.auth-form-group select,
+.guardian-link-row input {
+  min-height: 42px;
+  border: 1px solid var(--border-emphasis);
+  border-radius: var(--radius-md);
+  background: #FFFFFF;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-weight: 400;
+}
+
+textarea,
+.form-group textarea {
+  min-height: 94px;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+}
+
+label,
+.form-group label,
+.seeker-form-grid label span,
+.seeker-modal-field span,
+.auth-form-group label {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.data-table,
+.re-data-table,
+.rooms-table table,
+.payments-table table,
+.income-details table {
+  overflow: hidden;
+  border: 0.5px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: #FFFFFF;
+  box-shadow: none;
+}
+
+.data-table thead,
+.re-data-table th,
+.rooms-table th,
+.payments-table th,
+.income-details th {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 0.69rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.data-table th,
+.data-table td,
+.re-data-table th,
+.re-data-table td,
+.rooms-table td,
+.payments-table td,
+.income-details td {
+  border-bottom: 0.5px solid rgba(28, 28, 26, 0.07);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+}
+
+.data-table tbody tr:nth-child(odd),
+.re-data-table tbody tr:nth-child(odd) {
+  background: var(--bg-page);
+}
+
+.data-table tbody tr:nth-child(even),
+.re-data-table tbody tr:nth-child(even) {
+  background: #FFFFFF;
+}
+
+.data-table tbody tr:hover,
+.re-data-table tbody tr:hover,
+.rooms-table tbody tr:hover,
+.payments-table tbody tr:hover,
+.income-details tbody tr:hover {
+  background: var(--color-gold-light);
+}
+
+.re-room-card {
+  overflow: hidden;
+  padding: 0;
+  border: 0.5px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.re-room-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-modal);
+}
+
+.re-room-media {
+  overflow: hidden;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.re-room-media img {
+  transition: transform 0.3s ease;
+}
+
+.re-room-card:hover .re-room-media img {
+  transform: scale(1.03);
+}
+
+.re-room-type,
+.re-room-media .re-room-type {
+  top: 12px;
+  left: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-slate);
+  color: var(--text-on-dark);
+  font-size: 0.69rem;
+  font-weight: 500;
+  padding: 5px 10px;
+}
+
+.re-room-card-body {
+  padding: 16px;
+}
+
+.re-room-card-heading h3 {
+  margin-top: 2px;
+  color: var(--text-primary);
+  font-size: 1.08rem;
+}
+
+.re-room-card-heading p,
+.re-room-meta span {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.re-room-card-heading strong,
+.property-price,
+.re-booking-rate strong {
+  color: var(--text-primary);
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.38rem;
+  font-weight: 700;
+}
+
+.re-room-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.re-room-actions a {
+  border: 1px solid var(--color-slate);
+  border-radius: var(--radius-md);
+  color: var(--color-slate);
+}
+
+.re-room-actions a:hover {
+  background: var(--color-slate);
+  color: var(--text-on-dark);
+}
+
+.status-pill,
+.re-status-pill,
+.reservation-status-badge,
+.status-badge,
+.guardian-rent-status span {
+  border-radius: var(--radius-full);
+  font-size: 0.69rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  padding: 4px 10px;
+  text-transform: uppercase;
+}
+
+.pill-success,
+.status-available,
+.status-approved,
+.status-paid,
+.status-active,
+.re-status-available,
+.re-status-approved,
+.re-status-paid,
+.re-status-active,
+.guardian-rent-status.paid {
+  background: var(--status-paid-bg);
+  color: #085041;
+}
+
+.pill-warning,
+.status-pending,
+.re-status-pending {
+  background: var(--status-pending-bg);
+  color: #633806;
+}
+
+.pill-danger,
+.status-occupied,
+.status-unpaid,
+.re-status-occupied,
+.re-status-unpaid,
+.guardian-rent-status.unpaid {
+  background: var(--status-unpaid-bg);
+  color: #7A3A18;
+}
+
+.status-rejected,
+.re-status-rejected {
+  background: var(--status-rejected-bg);
+  color: #791F1F;
+}
+
+.pill-neutral,
+.status-archived,
+.status-inactive,
+.re-status-archived,
+.re-status-inactive,
+.re-status-no_record {
+  background: var(--status-archived-bg);
+  color: #5F5E5A;
+}
+
+.modal-overlay,
+.re-modal-backdrop {
+  background: rgba(28, 28, 26, 0.55);
+}
+
+.modal-content,
+.re-modal,
+.reservation-review-modal,
+.room-modal-content {
+  border-radius: 16px;
+  background: var(--bg-page);
+  box-shadow: var(--shadow-modal);
+}
+
+.modal-header {
+  padding-bottom: 16px;
+  border-bottom: 0.5px solid var(--border-default);
+}
+
+.modal-header h2,
+.re-modal h2 {
+  color: var(--text-primary);
+  font-size: 1.25rem;
+}
+
+.form-actions,
+.re-modal-actions {
+  padding-top: 16px;
+  border-top: 0.5px solid var(--border-default);
+}
+
+.owner-choice-card:hover,
+.property-card:hover,
+.re-property-browse-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-emphasis);
+  box-shadow: var(--shadow-modal);
+}
+
+.owner-choice-card.active,
+.filter-tabs button.active,
+.view-toggle button.active,
+.re-role-tabs button.active {
+  border-color: var(--color-gold);
+  background: var(--color-gold-light);
+  color: var(--text-on-gold);
+}
+
+.owner-choice-card strong,
+.re-eyebrow,
+.feature-icon,
+.re-stat-icon,
+.guardian-topbar strong {
+  color: var(--color-gold);
+}
+
+.owner-upload-control,
+.re-file-upload label,
+.re-file-input {
+  border-color: var(--border-emphasis);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.re-public-subnav,
+.re-trust-strip,
+.re-feature-rows article,
+.re-property-browse-card,
+.re-detail-main,
+.re-booking-card,
+.guardian-shell {
+  background: var(--bg-card);
+}
+
+.re-property-metrics span,
+.re-property-chips span,
+.re-room-meta span,
+.re-amenities-grid article,
+.owner-chip-list span,
+.room-badge,
+.toolbar-badge,
+.user-badge,
+.auth-editorial-pills span {
+  border: 0.5px solid var(--border-default);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+}
+
+.user-badge {
+  color: var(--text-primary);
+}
+
+.toast,
+.re-toast,
+.toast-notification {
+  max-width: 320px;
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-modal);
+}
+
+.re-toast-success {
+  border-left: 3px solid var(--status-paid);
+}
+
+.re-toast-warning {
+  border-left: 3px solid var(--status-pending);
+}
+
+.re-toast-error {
+  border-left: 3px solid var(--status-rejected);
+}
+
+.re-toast-info {
+  border-left: 3px solid var(--color-gold);
+}
+
+.seeker-bottom-nav {
+  border-color: var(--border-default);
+  background: rgba(237, 234, 227, 0.96);
+  box-shadow: var(--shadow-modal);
+}
+
+.seeker-bottom-link {
+  color: var(--text-secondary);
+}
+
+.seeker-bottom-link.active {
+  background: var(--color-slate);
+  color: var(--text-on-dark);
+}
+
+@media print {
+  sidebar,
+  navbar,
+  .modern-sidebar,
+  .modern-topbar,
+  .action-buttons,
+  .filter-panels,
+  .owner-toolbar,
+  .theme-toggle,
+  .re-public-nav,
+  .re-public-subnav,
+  .seeker-bottom-nav {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+    color: var(--color-slate) !important;
+    font-size: 12px;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    border: 0.5px solid var(--color-warm-white);
+    padding: 6px 10px;
+  }
+
+  .status-pill,
+  .re-status-pill {
+    border: 0.5px solid currentColor !important;
+    background: transparent !important;
+  }
+
+  @page {
+    margin: 1.5cm;
+    size: A4 landscape;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Accessibility contrast pass - stronger text on ivory / warm-white surfaces */
+:root,
+html.light,
+html.dark {
+  --color-midtone: #3E3D38;
+  --color-warm-white: #F3F0EA;
+  --color-muted: var(--color-midtone);
+  --bg-card: var(--color-warm-white);
+  --bg-surface: #F6F2EC;
+  --color-mist: var(--bg-surface);
+  --text-secondary: #3E3D38;
+  --text-muted: #625F58;
+  --muted: var(--bg-surface);
+  --muted-foreground: var(--text-secondary);
+  --border-default: rgba(28, 28, 26, 0.16);
+  --border-emphasis: rgba(28, 28, 26, 0.28);
+  --border-strong: rgba(28, 28, 26, 0.42);
+  --border: var(--border-default);
+  --card: var(--bg-card);
+  --card-foreground: var(--text-primary);
+  --lp-muted: var(--text-secondary);
+  --lp-card: var(--bg-card);
+  --dark-muted: var(--text-secondary);
+  --dark-surface: var(--bg-card);
+  --dark-surface-2: var(--bg-surface);
+}
+
+.modern-topbar,
+.module-card,
+.stat-card,
+.quick-card,
+.tenant-card,
+.owner-preview-panel,
+.auth-card,
+.re-auth-card,
+.complete-profile-card,
+.guardian-card,
+.guardian-shell,
+.guardian-error-card,
+.re-simple-state-card,
+.property-card,
+.re-property-browse-card,
+.re-room-card,
+.re-booking-card,
+.re-detail-main,
+.re-location-card,
+.re-house-rules,
+.re-related-rooms,
+.re-room-filter-bar,
+.re-trust-strip article,
+.re-feature-rows article,
+.owner-choice-card,
+.owner-checkbox,
+.reservation-review-summary,
+.reservation-review-card,
+.review-note,
+.re-table-wrap,
+.modal-content,
+.re-modal {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+p,
+li,
+td,
+dd,
+label,
+.topbar-title p,
+.module-card p,
+.module-card li,
+.stat-label,
+.quick-label,
+.toolbar-sub,
+.caption,
+.owner-field-hint,
+.re-property-copy,
+.re-detail-copy,
+.property-description,
+.property-location,
+.re-room-card-heading p,
+.re-room-meta span,
+.guardian-definition-list dt,
+.guardian-history span,
+.seeker-muted,
+.account-email,
+.review-detail-list span,
+.review-note p,
+.re-upload-note {
+  color: var(--text-secondary);
+}
+
+small,
+.caption,
+.owner-field-hint,
+.re-room-card-heading p,
+.re-room-meta span,
+.re-property-metrics span,
+.re-property-chips span,
+.toolbar-badge,
+.room-badge,
+.user-badge,
+.status-kicker,
+.brand-meta {
+  color: var(--text-muted);
+}
+
+input,
+select,
+textarea,
+.form-stack input,
+.form-stack select,
+.form-group input,
+.form-group select,
+.form-group textarea,
+.re-input-with-icon,
+.re-search-field,
+.auth-form-group input,
+.auth-form-group select,
+.guardian-link-row input {
+  background: #FFFDF8;
+  color: var(--text-primary);
+  border-color: var(--border-emphasis);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #6F6B63;
+}
+
+.data-table td,
+.re-data-table td,
+.rooms-table td,
+.payments-table td,
+.income-details td,
+.table-data {
+  color: var(--color-ink);
+}
+
+.data-table th,
+.re-data-table th,
+.rooms-table th,
+.payments-table th,
+.income-details th {
+  color: var(--text-secondary);
+}
+
+.modern-sidebar .nav-item,
+.modern-sidebar .logout-btn,
+.modern-sidebar .user-email,
+.re-public-nav .re-nav-links a,
+.re-public-nav.is-scrolled .re-nav-links a {
+  color: #C8C4BA;
+}
+
+.modern-sidebar .nav-item:hover,
+.modern-sidebar .nav-item.active,
+.re-public-nav .re-nav-links a:hover,
+.re-public-nav.is-scrolled .re-nav-links a:hover {
+  color: var(--text-on-dark);
+}
+
+.seeker-bottom-link {
+  color: #4A4842;
+}
+
+/* Compact checklist and password visibility controls */
+input[type="checkbox"] {
+  width: 16px !important;
+  min-width: 16px;
+  height: 16px !important;
+  min-height: 16px !important;
+  margin: 0;
+  padding: 0 !important;
+  accent-color: var(--color-slate);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.re-auth-options label,
+.owner-checkbox,
+label:has(> input[type="checkbox"]) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.re-auth-options label {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.owner-checkbox {
+  min-height: 40px;
+  padding: 0.48rem 0.65rem;
+  border-color: var(--border-default);
+  background: #FFFDF8;
+  color: var(--text-primary);
+}
+
+.owner-checkbox:has(input[type="checkbox"]:checked) {
+  border-color: rgba(201, 169, 110, 0.75);
+  background: var(--color-gold-light);
+}
+
+.password-input-control {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+}
+
+.password-input-control input {
+  width: 100%;
+  padding-right: 2.85rem !important;
+}
+
+.password-input-control.has-leading-icon input {
+  padding-left: 2.45rem !important;
+}
+
+.password-input-control.re-input-with-icon {
+  min-height: 0;
+  border: 0;
+  background: transparent;
+}
+
+.password-input-control.re-input-with-icon input {
+  min-height: 44px;
+  border: 1px solid var(--border-emphasis);
+  border-radius: var(--radius-md);
+  background: #FFFDF8;
+  color: var(--text-primary);
+}
+
+.password-leading-icon,
+.password-toggle-button {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+}
+
+.password-leading-icon {
+  left: 0.78rem;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.password-toggle-button {
+  right: 0.35rem;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.password-toggle-button:hover,
+.password-toggle-button:focus-visible {
+  background: rgba(28, 28, 26, 0.08);
+  color: var(--text-primary);
+}
+
+.password-toggle-button:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.password-input-control .password-leading-icon svg,
+.password-input-control .password-toggle-button svg {
+  position: static;
+  inset: auto;
+  transform: none;
+  color: currentColor;
 }

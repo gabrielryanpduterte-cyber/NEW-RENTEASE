@@ -6,6 +6,7 @@ import {
   LayoutDashboard, 
   Users, 
   Home, 
+  Building2,
   Calendar, 
   CreditCard, 
   MessageSquare, 
@@ -22,9 +23,10 @@ import {
 const NAV_BY_ROLE = Object.freeze({
   seeker: [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/seeker/properties', label: 'Browse', icon: Building2 },
     { to: '/dashboard/room', label: 'My Room', icon: Home },
     { to: '/dashboard/reservations', label: 'Reservations', icon: Calendar },
-    { to: '/dashboard/rent', label: 'Rent Status', icon: CreditCard },
+    { to: '/dashboard/rent', label: 'Payments', icon: CreditCard },
     { to: '/dashboard/guardians', label: 'Guardian Access', icon: Users },
     { to: '/seeker/feedback', label: 'Feedback', icon: MessageSquare },
     { to: '/dashboard/profile', label: 'Profile', icon: Settings },
@@ -39,7 +41,7 @@ const NAV_BY_ROLE = Object.freeze({
   ],
   owner: [
     { to: '/owner/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/owner/boarding-house', label: 'Boarding House', icon: Home },
+    { to: '/owner/boarding-house', label: 'Property', icon: Home },
     { to: '/owner/rooms', label: 'Rooms', icon: PanelsTopLeft },
     { to: '/owner/reservations', label: 'Reservations', icon: Calendar },
     { to: '/owner/tenants', label: 'Tenants', icon: Users },

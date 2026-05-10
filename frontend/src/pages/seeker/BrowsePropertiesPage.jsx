@@ -1,354 +1,252 @@
-import { useState, useEffect } from 'react';
-import { roomsApi, boardingHouseApi } from '../../api/client.js';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Building2, CalendarPlus, Eye, Filter, MapPin, RotateCcw, Search, Users } from 'lucide-react';
+import { boardingHouseApi, roomsApi } from '../../api/client.js';
 import AppShell from '../../components/AppShell.jsx';
+import { LoadingSkeleton } from '../../components/seeker/SeekerShared.jsx';
 import { formatCurrency } from '../../utils/format.js';
+import {
+  buildPropertyListings,
+  filterPropertyListings,
+  PROPERTY_TYPE_OPTIONS,
+  propertyTypeLabel,
+} from '../../utils/propertyBrowse.js';
 
-function BrowsePropertiesPage() {
+const DEFAULT_FILTERS = {
+  search: '',
+  propertyType: '',
+  maxPrice: '',
+};
+
+export default function BrowsePropertiesPage() {
+  const navigate = useNavigate();
+  const [houses, setHouses] = useState([]);
   const [rooms, setRooms] = useState([]);
-  const [boardingHouses, setBoardingHouses] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [selectedRoom, setSelectedRoom] = useState(null);
-  const [filters, setFilters] = useState({
-    search: '',
-    roomType: '',
-    minPrice: '',
-    maxPrice: '',
-  });
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [selectedPropertyId, setSelectedPropertyId] = useState(null);
+  const [state, setState] = useState({ loading: true, error: '' });
+
+  async function loadListings() {
+    setState({ loading: true, error: '' });
+    try {
+      const [housesPayload, roomsPayload] = await Promise.all([
+        boardingHouseApi.list(),
+        roomsApi.list({ availability_status: 'available', include_archived: 0 }),
+      ]);
+      setHouses(Array.isArray(housesPayload.data) ? housesPayload.data : []);
+      setRooms(Array.isArray(roomsPayload.data) ? roomsPayload.data : []);
+      setState({ loading: false, error: '' });
+    } catch (error) {
+      setState({
+        loading: false,
+        error: error?.errors?.[0] || error?.message || 'Unable to load properties.',
+      });
+    }
+  }
 
   useEffect(() => {
-    let isMounted = true;
-
-    Promise.all([
-      roomsApi.list({ availability_status: 'available' }),
-      boardingHouseApi.list(),
-    ])
-      .then(([roomsRes, housesRes]) => {
-        if (!isMounted) {
-          return;
-        }
-
-        setRooms(roomsRes.data || []);
-
-        const housesMap = {};
-        (housesRes.data || []).forEach(house => {
-          housesMap[house.boarding_house_id] = house;
-        });
-        setBoardingHouses(housesMap);
-      })
-      .catch((error) => {
-        console.error('Failed to load data:', error);
-      })
-      .finally(() => {
-        if (isMounted) {
-          setLoading(false);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
+    queueMicrotask(() => {
+      loadListings();
+    });
   }, []);
 
-  const filteredRooms = rooms.filter(room => {
-    if (filters.search && !room.room_number.toLowerCase().includes(filters.search.toLowerCase()) &&
-        !boardingHouses[room.boarding_house_id]?.house_name?.toLowerCase().includes(filters.search.toLowerCase())) {
-      return false;
-    }
-    if (filters.roomType && room.room_type !== filters.roomType) return false;
-    if (filters.minPrice && parseFloat(room.monthly_rate) < parseFloat(filters.minPrice)) return false;
-    if (filters.maxPrice && parseFloat(room.monthly_rate) > parseFloat(filters.maxPrice)) return false;
-    return true;
-  });
+  const properties = useMemo(() => buildPropertyListings(houses, rooms), [houses, rooms]);
+  const filteredProperties = useMemo(
+    () => filterPropertyListings(properties, filters),
+    [filters, properties],
+  );
+  const selectedProperty = filteredProperties.find((property) => property.boarding_house_id === selectedPropertyId) || null;
 
-  const roomTypes = [...new Set(rooms.map(r => r.room_type))];
+  const quickStats = [
+    { label: 'Properties', value: String(properties.length), tone: 'neutral' },
+    {
+      label: 'Available Rooms',
+      value: String(properties.reduce((sum, property) => sum + property.availableRooms.length, 0)),
+      tone: 'mint',
+    },
+  ];
+
+  function selectProperty(property) {
+    setSelectedPropertyId(property.boarding_house_id);
+    window.requestAnimationFrame(() => {
+      document.getElementById('seeker-property-rooms')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
 
   return (
     <AppShell
       title="Browse Properties"
-      subtitle="Find your perfect boarding house room"
+      subtitle="Choose a property first, then review its available rooms."
+      quickStats={quickStats}
     >
-      {/* Search and Filters */}
-      <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '1.5rem', marginBottom: '1.5rem' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.5rem' }}>
-              Search
-            </label>
+      <section className="seeker-main-column">
+        <div className="browse-filter-card">
+          <label className="browse-search-field">
+            <Search size={18} />
             <input
-              type="text"
-              placeholder="Room number or house name..."
+              type="search"
               value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-              style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
+              onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+              placeholder="Search property, address, amenity"
             />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.5rem' }}>
-              Room Type
-            </label>
+          </label>
+          <label>
+            <span>Property Type</span>
             <select
-              value={filters.roomType}
-              onChange={(e) => setFilters({ ...filters, roomType: e.target.value })}
-              style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
+              value={filters.propertyType}
+              onChange={(event) => setFilters((current) => ({ ...current, propertyType: event.target.value }))}
             >
-              <option value="">All Types</option>
-              {roomTypes.map(type => (
-                <option key={type} value={type}>{type}</option>
+              {PROPERTY_TYPE_OPTIONS.map((option) => (
+                <option key={option.value || 'all'} value={option.value}>
+                  {option.label}
+                </option>
               ))}
             </select>
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.5rem' }}>
-              Min Price
-            </label>
+          </label>
+          <label>
+            <span>Max Starting Rate</span>
             <input
               type="number"
-              placeholder="0"
-              value={filters.minPrice}
-              onChange={(e) => setFilters({ ...filters, minPrice: e.target.value })}
-              style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: '500', marginBottom: '0.5rem' }}>
-              Max Price
-            </label>
-            <input
-              type="number"
-              placeholder="10000"
+              min="0"
+              step="500"
               value={filters.maxPrice}
-              onChange={(e) => setFilters({ ...filters, maxPrice: e.target.value })}
-              style={{ width: '100%', padding: '0.625rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', fontSize: '0.875rem' }}
+              onChange={(event) => setFilters((current) => ({ ...current, maxPrice: event.target.value }))}
+              placeholder="Any budget"
             />
-          </div>
+          </label>
+          <button type="button" className="button-light" onClick={() => setFilters(DEFAULT_FILTERS)}>
+            <Filter size={16} />
+            Reset
+          </button>
+          <button type="button" className="button-light" onClick={loadListings} disabled={state.loading}>
+            <RotateCcw size={16} />
+            Refresh
+          </button>
         </div>
-        <button
-          onClick={() => setFilters({ search: '', roomType: '', minPrice: '', maxPrice: '' })}
-          className="button-light"
-          style={{ marginTop: '1rem' }}
-        >
-          Clear Filters
-        </button>
-      </div>
 
-      {/* Results Count */}
-      <div style={{ marginBottom: '1rem', color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>
-        {loading ? 'Loading...' : `${filteredRooms.length} room(s) available`}
-      </div>
+        {state.loading ? (
+          <LoadingSkeleton rows={4} />
+        ) : state.error ? (
+          <div className="re-error-panel">{state.error}</div>
+        ) : (
+          <>
+            <div className="re-notice-panel">
+              Browse properties first, then choose a room. RentEase is for longer stays, so an approved or pending reservation blocks new reservations until it is resolved.
+            </div>
 
-      {/* Room Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
-        {filteredRooms.map(room => {
-          const house = boardingHouses[room.boarding_house_id];
-          return (
-            <div
-              key={room.room_id}
-              onClick={() => setSelectedRoom(room)}
-              style={{
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)',
-                overflow: 'hidden',
-                background: 'var(--card)',
-                cursor: 'pointer',
-                transition: 'transform 150ms, box-shadow 150ms',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.12)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              <div style={{ height: '200px', background: 'linear-gradient(145deg, #f1f5f9, #e2e8f0)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '3rem' }}>
-                🏠
+            <div className="browse-results-line">
+              <span>{filteredProperties.length} properties found</span>
+              {selectedProperty && (
+                <button type="button" className="button-light" onClick={() => setSelectedPropertyId(null)}>
+                  Show all properties
+                </button>
+              )}
+            </div>
+
+            {filteredProperties.length === 0 ? (
+              <div className="re-empty-state seeker-empty">
+                <div aria-hidden="true">RE</div>
+                <h2>No properties match your filters.</h2>
+                <p>Try another property type, address, amenity, or budget.</p>
               </div>
-
-              <div style={{ padding: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.75rem' }}>
-                  <div>
-                    <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.25rem' }}>
-                      Room {room.room_number}
-                    </h3>
-                    <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)' }}>
-                      {house?.house_name || 'Boarding House'}
-                    </p>
-                  </div>
-                  <span className="status-pill pill-success" style={{ fontSize: '0.7rem' }}>
-                    Available
-                  </span>
-                </div>
-
-                <div style={{ display: 'grid', gap: '0.5rem', marginBottom: '1rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
-                    <span>🛏️</span>
-                    <span>{room.room_type}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
-                    <span>👥</span>
-                    <span>Capacity: {room.capacity}</span>
-                  </div>
-                  {house?.address && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: 'var(--muted-foreground)' }}>
-                      <span>📍</span>
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {house.address}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginBottom: '0.25rem' }}>
-                      Monthly Rate
-                    </p>
-                    <p style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--primary)' }}>
-                      {formatCurrency(room.monthly_rate)}
-                    </p>
-                  </div>
-                  <button
-                    className="button-primary"
-                    style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedRoom(room);
-                    }}
+            ) : (
+              <div className="browse-property-grid">
+                {filteredProperties.map((property) => (
+                  <article
+                    key={property.boarding_house_id}
+                    className={`browse-property-card ${selectedPropertyId === property.boarding_house_id ? 'active' : ''}`}
                   >
-                    View Details
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Room Details Modal */}
-      {selectedRoom && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '1rem',
-          }}
-          onClick={() => setSelectedRoom(null)}
-        >
-          <div
-            style={{
-              background: 'var(--card)',
-              borderRadius: 'var(--radius)',
-              padding: '2rem',
-              maxWidth: '700px',
-              width: '100%',
-              maxHeight: '90vh',
-              overflow: 'auto',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1.5rem' }}>
-              <div>
-                <h2 style={{ fontSize: '1.875rem', fontWeight: '700', marginBottom: '0.5rem' }}>
-                  Room {selectedRoom.room_number}
-                </h2>
-                <p style={{ color: 'var(--muted-foreground)', fontSize: '1.125rem' }}>
-                  {boardingHouses[selectedRoom.boarding_house_id]?.house_name}
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedRoom(null)}
-                className="button-light"
-                style={{ padding: '0.5rem' }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
-              <div style={{ padding: '1rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-                <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginBottom: '0.25rem' }}>Room Type</p>
-                <p style={{ fontSize: '1.125rem', fontWeight: '600' }}>{selectedRoom.room_type}</p>
-              </div>
-              <div style={{ padding: '1rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-                <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginBottom: '0.25rem' }}>Capacity</p>
-                <p style={{ fontSize: '1.125rem', fontWeight: '600' }}>{selectedRoom.capacity} person(s)</p>
-              </div>
-            </div>
-
-            <div style={{ padding: '1.5rem', background: 'var(--muted)', borderRadius: 'var(--radius)', marginBottom: '1.5rem' }}>
-              <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '0.5rem' }}>Monthly Rate</p>
-              <p style={{ fontSize: '2.25rem', fontWeight: '700', color: 'var(--primary)' }}>
-                {formatCurrency(selectedRoom.monthly_rate)}
-              </p>
-            </div>
-
-            {selectedRoom.amenities && (
-              <div style={{ marginBottom: '1.5rem' }}>
-                <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.75rem' }}>Amenities</h3>
-                <p style={{ fontSize: '0.9375rem', lineHeight: '1.6', color: 'var(--muted-foreground)' }}>
-                  {selectedRoom.amenities}
-                </p>
+                    <div className="browse-property-photo">
+                      {property.image ? (
+                        <img src={property.image} alt={property.house_name || 'Property'} loading="lazy" />
+                      ) : (
+                        <Building2 size={36} />
+                      )}
+                      <span>{propertyTypeLabel(property.property_type)}</span>
+                    </div>
+                    <div className="browse-property-body">
+                      <div>
+                        <h2>{property.house_name || 'Property'}</h2>
+                        <p>
+                          <MapPin size={15} />
+                          {property.address || 'Address not listed'}
+                        </p>
+                      </div>
+                      <strong>{property.minRate ? `From ${formatCurrency(property.minRate)}` : 'Rates pending'}</strong>
+                      <div className="browse-property-metrics">
+                        <span>{property.availableRooms.length} available room(s)</span>
+                        <span>{property.roomTypes.join(', ') || 'Rooms pending'}</span>
+                      </div>
+                      {property.amenities?.length > 0 && (
+                        <div className="browse-chip-row">
+                          {property.amenities.slice(0, 4).map((amenity) => (
+                            <span key={amenity}>{amenity}</span>
+                          ))}
+                        </div>
+                      )}
+                      <button type="button" className="button-primary" onClick={() => selectProperty(property)}>
+                        View Rooms
+                      </button>
+                    </div>
+                  </article>
+                ))}
               </div>
             )}
 
-            {boardingHouses[selectedRoom.boarding_house_id] && (
-              <>
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.75rem' }}>Location</h3>
-                  <p style={{ fontSize: '0.9375rem', lineHeight: '1.6', color: 'var(--muted-foreground)' }}>
-                    📍 {boardingHouses[selectedRoom.boarding_house_id].address}
-                  </p>
+            {selectedProperty && (
+              <article className="browse-room-panel" id="seeker-property-rooms">
+                <div className="seeker-card-head">
+                  <Building2 size={20} />
+                  <h2>{selectedProperty.house_name}</h2>
                 </div>
-
-                {boardingHouses[selectedRoom.boarding_house_id].description && (
-                  <div style={{ marginBottom: '1.5rem' }}>
-                    <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.75rem' }}>About</h3>
-                    <p style={{ fontSize: '0.9375rem', lineHeight: '1.6', color: 'var(--muted-foreground)' }}>
-                      {boardingHouses[selectedRoom.boarding_house_id].description}
-                    </p>
+                <p className="seeker-muted">
+                  {selectedProperty.address || 'Address not listed'} - {selectedProperty.availableRooms.length} available room(s)
+                </p>
+                {selectedProperty.availableRooms.length > 0 ? (
+                  <div className="browse-room-list">
+                    {selectedProperty.availableRooms.map((room) => (
+                      <div className="browse-room-row" key={room.id}>
+                        <div className="browse-room-thumb">
+                          {room.photo ? (
+                            <img src={room.photo} alt={`Room ${room.roomNumber}`} loading="lazy" />
+                          ) : (
+                            <Building2 size={24} />
+                          )}
+                        </div>
+                        <div className="browse-room-copy">
+                          <strong>Room {room.roomNumber}</strong>
+                          <span>{room.type}</span>
+                          <span>
+                            <Users size={14} />
+                            {room.occupiedCount || 0} inside, {room.remainingCapacity ?? room.capacity} left
+                          </span>
+                        </div>
+                        <strong className="browse-room-rate">{formatCurrency(room.rate)}</strong>
+                        <div className="browse-room-actions">
+                          <button type="button" className="button-light" onClick={() => navigate(`/rooms/${room.id}`)}>
+                            <Eye size={15} />
+                            Details
+                          </button>
+                          <button
+                            type="button"
+                            className="button-primary"
+                            onClick={() => navigate(`/dashboard/reservations?room=${room.id}`)}
+                          >
+                            <CalendarPlus size={15} />
+                            Reserve
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
+                ) : (
+                  <p className="seeker-muted">No available rooms in this property right now.</p>
                 )}
-
-                {boardingHouses[selectedRoom.boarding_house_id].house_rules && (
-                  <div style={{ marginBottom: '1.5rem' }}>
-                    <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.75rem' }}>House Rules</h3>
-                    <p style={{ fontSize: '0.9375rem', lineHeight: '1.6', color: 'var(--muted-foreground)' }}>
-                      {boardingHouses[selectedRoom.boarding_house_id].house_rules}
-                    </p>
-                  </div>
-                )}
-              </>
+              </article>
             )}
-
-            <div style={{ display: 'flex', gap: '1rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border)' }}>
-              <button
-                className="button-primary"
-                style={{ flex: 1 }}
-                onClick={() => {
-                  setSelectedRoom(null);
-                  window.location.href = '/seeker/bookings?room=' + selectedRoom.room_id;
-                }}
-              >
-                Book This Room
-              </button>
-              <button
-                className="button-secondary"
-                onClick={() => setSelectedRoom(null)}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </section>
     </AppShell>
   );
 }
-
-export default BrowsePropertiesPage;

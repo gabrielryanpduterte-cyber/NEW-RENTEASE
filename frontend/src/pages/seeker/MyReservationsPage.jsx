@@ -18,6 +18,7 @@ export default function MyReservationsPage() {
   const [message, setMessage] = useState('');
   const [validId, setValidId] = useState(null);
   const [form, setForm] = useState({
+    boarding_house_id: '',
     room_id: searchParams.get('room') || '',
     move_in_date: '',
     remarks: '',
@@ -34,8 +35,24 @@ export default function MyReservationsPage() {
         reservationsApi.list(),
         roomsApi.list({ availability_status: 'available' }),
       ]);
+      const nextRooms = Array.isArray(roomsPayload.data) ? roomsPayload.data : [];
       setReservations(Array.isArray(reservationsPayload.data) ? reservationsPayload.data : []);
-      setRooms(Array.isArray(roomsPayload.data) ? roomsPayload.data : []);
+      setRooms(nextRooms);
+      setForm((current) => {
+        if (!current.room_id || current.boarding_house_id) {
+          return current;
+        }
+
+        const selectedRoom = nextRooms.find((room) => String(room.room_id) === String(current.room_id));
+        if (!selectedRoom?.boarding_house_id) {
+          return current;
+        }
+
+        return {
+          ...current,
+          boarding_house_id: String(selectedRoom.boarding_house_id),
+        };
+      });
     } catch (error) {
       setMessage(error?.errors?.[0] || error?.message || 'Unable to load reservations.');
     } finally {
@@ -55,6 +72,44 @@ export default function MyReservationsPage() {
     return tomorrow.toISOString().slice(0, 10);
   }, []);
 
+  const propertyOptions = useMemo(() => {
+    const properties = new Map();
+
+    rooms.forEach((room) => {
+      const id = String(room.boarding_house_id || '');
+      if (!id) return;
+
+      if (!properties.has(id)) {
+        properties.set(id, {
+          id,
+          name: room.house_name || `Property ${id}`,
+          roomCount: 0,
+          minRate: null,
+        });
+      }
+
+      const property = properties.get(id);
+      const rate = Number(room.monthly_rate || 0);
+      property.roomCount += 1;
+      property.minRate = property.minRate === null ? rate : Math.min(property.minRate, rate);
+    });
+
+    return Array.from(properties.values()).sort((left, right) => left.name.localeCompare(right.name));
+  }, [rooms]);
+
+  const roomsForSelectedProperty = useMemo(
+    () =>
+      rooms.filter((room) => {
+        if (!form.boarding_house_id) return false;
+        return String(room.boarding_house_id) === String(form.boarding_house_id);
+      }),
+    [form.boarding_house_id, rooms],
+  );
+  const lockedReservation = reservations.find((reservation) => ['pending', 'approved'].includes(reservation.status));
+  const reservationLockMessage = lockedReservation
+    ? `You already have a ${lockedReservation.status} long-term reservation for Room ${lockedReservation.room_number || lockedReservation.room_id}. Resolve it before requesting another property.`
+    : '';
+
   async function submitReservation(event) {
     event.preventDefault();
     setSubmitting(true);
@@ -70,7 +125,7 @@ export default function MyReservationsPage() {
 
     try {
       await reservationsApi.create(body);
-      setForm({ room_id: '', move_in_date: '', remarks: '' });
+      setForm({ boarding_house_id: '', room_id: '', move_in_date: '', remarks: '' });
       setValidId(null);
       setShowForm(false);
       showToast('Reservation submitted successfully.', 'success');
@@ -112,8 +167,12 @@ export default function MyReservationsPage() {
       ]}
     >
       <section className="seeker-main-column">
+        <div className="re-notice-panel">
+          RentEase reservations are for longer stays such as monthly or yearly boarding. Keep only one pending or approved reservation at a time.
+        </div>
+
         <div className="seeker-page-actions">
-          <button type="button" className="button-primary" onClick={() => setShowForm((current) => !current)}>
+          <button type="button" className="button-primary" onClick={() => setShowForm((current) => !current)} disabled={Boolean(lockedReservation)}>
             <Plus size={16} />
             {showForm ? 'Close Form' : 'New Reservation'}
           </button>
@@ -126,16 +185,41 @@ export default function MyReservationsPage() {
         {showForm && (
           <article className="seeker-form-card">
             <h2>Submit New Reservation</h2>
+            {reservationLockMessage && <div className="re-error-panel">{reservationLockMessage}</div>}
             <form onSubmit={submitReservation} className="seeker-form-grid">
               <label>
-                <span>Room</span>
+                <span>Property</span>
+                <select
+                  value={form.boarding_house_id}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      boarding_house_id: event.target.value,
+                      room_id: '',
+                    }))
+                  }
+                  required
+                >
+                  <option value="">Choose a property first</option>
+                  {propertyOptions.map((property) => (
+                    <option key={property.id} value={property.id}>
+                      {property.name} - {property.roomCount} available room(s)
+                      {property.minRate ? ` from ${formatCurrency(property.minRate)}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                <span>Available Room</span>
                 <select
                   value={form.room_id}
                   onChange={(event) => setForm((current) => ({ ...current, room_id: event.target.value }))}
                   required
+                  disabled={!form.boarding_house_id}
                 >
-                  <option value="">Choose a room</option>
-                  {rooms.map((room) => (
+                  <option value="">{form.boarding_house_id ? 'Choose a room' : 'Choose a property first'}</option>
+                  {roomsForSelectedProperty.map((room) => (
                     <option key={room.room_id} value={room.room_id}>
                       Room {room.room_number} - {room.room_type} ({formatCurrency(room.monthly_rate)})
                     </option>
@@ -166,7 +250,6 @@ export default function MyReservationsPage() {
 
               <div className="seeker-form-wide">
                 <FileUpload
-                  accept="image/jpeg,image/png,.pdf"
                   maxSizeMB={5}
                   onFileSelect={setValidId}
                   label="Upload valid ID (optional)"
@@ -176,7 +259,7 @@ export default function MyReservationsPage() {
               {message && <div className="re-error-panel seeker-form-wide">{message}</div>}
 
               <div className="seeker-form-actions">
-                <button type="submit" className="button-primary" disabled={submitting}>
+                <button type="submit" className="button-primary" disabled={submitting || Boolean(lockedReservation)}>
                   {submitting ? 'Submitting...' : 'Submit Reservation'}
                 </button>
                 <button type="button" className="button-secondary" onClick={() => setShowForm(false)}>
@@ -193,8 +276,8 @@ export default function MyReservationsPage() {
           <EmptyState
             icon={CalendarX2}
             title="No reservations yet."
-            description="Browse rooms and submit your first reservation request."
-            cta={<Link className="button-primary" to="/rooms">Browse Rooms</Link>}
+            description="Browse properties first, then choose an available room to reserve."
+            cta={<Link className="button-primary" to="/seeker/properties">Browse Properties</Link>}
           />
         ) : (
           <div className="re-table-wrap">

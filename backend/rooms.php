@@ -10,7 +10,7 @@ $payload = in_array($method, ['POST', 'PUT', 'PATCH'], true) ? request_payload()
 $action = request_action($payload);
 
 try {
-    $actor = require_auth();
+    $actor = $method === 'GET' ? current_user() : require_auth();
 
     if ($method === 'GET') {
         handle_rooms_get($actor);
@@ -52,9 +52,10 @@ try {
     handle_exception($exception, 'Rooms request failed', $user ? (int)$user['user_id'] : null);
 }
 
-function handle_rooms_get(array $actor): void
+function handle_rooms_get(?array $actor): void
 {
     $roomId = parse_positive_int($_GET['room_id'] ?? null);
+    $approvedCountSql = "(SELECT COUNT(*) FROM reservations rv_room_count WHERE rv_room_count.room_id = r.room_id AND rv_room_count.status = 'approved')";
 
     if ($roomId !== null) {
         $query = db()->prepare(
@@ -70,11 +71,14 @@ function handle_rooms_get(array $actor): void
             json_response(false, 'Room not found.', new stdClass(), [], 404);
         }
 
-        if ($actor['role'] === 'owner' && (int)$room['owner_id'] !== (int)$actor['user_id']) {
+        if ($actor !== null && $actor['role'] === 'owner' && (int)$room['owner_id'] !== (int)$actor['user_id']) {
             json_response(false, 'Forbidden.', new stdClass(), ['You can only access rooms under your boarding house.'], 403);
         }
+        if ($actor === null && ((int)($room['is_archived'] ?? 0) === 1 || ($room['availability_status'] ?? '') === 'archived')) {
+            json_response(false, 'Room not found.', new stdClass(), [], 404);
+        }
 
-        json_response(true, 'Room fetched successfully.', normalize_room_row($room), []);
+        json_response(true, 'Room fetched successfully.', normalize_room_row($room, should_include_room_occupant($actor)), []);
     }
 
     $conditions = [];
@@ -91,6 +95,13 @@ function handle_rooms_get(array $actor): void
         if ($availability === 'archived') {
             $conditions[] = '(r.is_archived = 1 OR r.availability_status = :availability_status)';
             $params[':availability_status'] = $availability;
+        } elseif ($availability === 'available') {
+            $conditions[] = "(r.availability_status = 'available' OR (r.availability_status = 'occupied' AND {$approvedCountSql} < r.capacity))";
+            $conditions[] = "({$approvedCountSql} < r.capacity)";
+            $conditions[] = '(r.is_archived = 0 OR r.is_archived IS NULL)';
+        } elseif ($availability === 'occupied') {
+            $conditions[] = "({$approvedCountSql} >= r.capacity)";
+            $conditions[] = '(r.is_archived = 0 OR r.is_archived IS NULL)';
         } else {
             $conditions[] = 'r.availability_status = :availability_status';
             $conditions[] = '(r.is_archived = 0 OR r.is_archived IS NULL)';
@@ -103,9 +114,13 @@ function handle_rooms_get(array $actor): void
         $conditions[] = '(r.is_archived = 0 OR r.is_archived IS NULL)';
     }
 
-    if ($actor['role'] === 'owner') {
+    if ($actor !== null && $actor['role'] === 'owner') {
         $conditions[] = 'b.owner_id = :owner_id';
         $params[':owner_id'] = (int)$actor['user_id'];
+    } elseif ($actor === null) {
+        $conditions[] = "(r.availability_status = 'available' OR (r.availability_status = 'occupied' AND {$approvedCountSql} < r.capacity))";
+        $conditions[] = "({$approvedCountSql} < r.capacity)";
+        $conditions[] = '(r.is_archived = 0 OR r.is_archived IS NULL)';
     }
 
     $sql = 'SELECT r.*, b.house_name, b.owner_id
@@ -120,7 +135,26 @@ function handle_rooms_get(array $actor): void
     $query->execute($params);
     $rooms = $query->fetchAll();
 
-    json_response(true, 'Rooms fetched successfully.', array_map('normalize_room_row', $rooms), []);
+    $includeOccupant = should_include_room_occupant($actor);
+    json_response(
+        true,
+        'Rooms fetched successfully.',
+        array_map(static fn(array $room): array => normalize_room_row($room, $includeOccupant), $rooms),
+        []
+    );
+}
+
+function fixed_room_capacity(string $roomType): ?int
+{
+    $normalized = strtolower(trim($roomType));
+    if ($normalized === 'single') {
+        return 1;
+    }
+    if ($normalized === 'double') {
+        return 2;
+    }
+
+    return null;
 }
 
 function handle_rooms_create(array $actor, array $payload): void
@@ -135,6 +169,10 @@ function handle_rooms_create(array $actor, array $payload): void
     $roomNumber = trim((string)$payload['room_number']);
     $roomType = trim((string)$payload['room_type']);
     $capacity = parse_positive_int($payload['capacity'] ?? null);
+    $fixedCapacity = fixed_room_capacity($roomType);
+    if ($fixedCapacity !== null) {
+        $capacity = $fixedCapacity;
+    }
     $monthlyRate = $payload['monthly_rate'] ?? null;
     $amenityItems = parse_room_amenities_payload($payload);
     $amenities = implode(', ', array_map(static fn(array $item): string => $item['amenity_name'], $amenityItems));
@@ -152,8 +190,8 @@ function handle_rooms_create(array $actor, array $payload): void
     if ($roomType === '') {
         $errors[] = 'room_type is required.';
     }
-    if ($capacity === null) {
-        $errors[] = 'capacity must be a positive integer.';
+    if ($capacity === null || $capacity > 10) {
+        $errors[] = 'capacity must be between 1 and 10 tenants.';
     }
     if (!is_numeric((string)$monthlyRate) || (float)$monthlyRate < 0) {
         $errors[] = 'monthly_rate must be a valid non-negative number.';
@@ -161,8 +199,8 @@ function handle_rooms_create(array $actor, array $payload): void
     if (!in_array($availabilityStatus, ['available', 'unavailable', 'occupied', 'archived'], true)) {
         $errors[] = 'availability_status must be available, unavailable, occupied, or archived.';
     }
-    if (($payload['floor_number'] ?? '') !== '' && $floorNumber === null) {
-        $errors[] = 'floor_number must be zero or a positive integer.';
+    if (($payload['floor_number'] ?? '') !== '' && ($floorNumber === null || $floorNumber > 10)) {
+        $errors[] = 'floor_number must be from 0 to 10.';
     }
     if (!empty($errors)) {
         json_response(false, 'Validation failed.', new stdClass(), $errors, 400);
@@ -206,7 +244,7 @@ function handle_rooms_create(array $actor, array $payload): void
     $newId = (int)db()->lastInsertId();
     replace_room_amenities($newId, $amenityItems);
 
-    $photoPaths = store_room_photo_uploads($newId, 5);
+    $photoPaths = store_room_photo_uploads($newId, 10);
     if (!empty($photoPaths)) {
         $updatePhotos = db()->prepare('UPDATE rooms SET photos = :photos WHERE room_id = :room_id');
         $updatePhotos->execute([
@@ -221,7 +259,7 @@ function handle_rooms_create(array $actor, array $payload): void
     $fetch->execute([':id' => $newId]);
     $room = $fetch->fetch();
 
-    json_response(true, 'Room created successfully.', $room ? normalize_room_row($room) : ['room_id' => $newId], [], 201);
+    json_response(true, 'Room created successfully.', $room ? normalize_room_row($room, true) : ['room_id' => $newId], [], 201);
 }
 
 function handle_rooms_update(array $actor, array $payload): void
@@ -254,6 +292,7 @@ function handle_rooms_update(array $actor, array $payload): void
 
     $updates = [];
     $params = [':room_id' => $roomId];
+    $nextRoomType = (string)($existing['room_type'] ?? '');
 
     if (array_key_exists('boarding_house_id', $payload)) {
         $newBoardingHouseId = parse_positive_int($payload['boarding_house_id']);
@@ -280,13 +319,16 @@ function handle_rooms_update(array $actor, array $payload): void
         $params[':room_number'] = trim((string)$payload['room_number']);
     }
     if (array_key_exists('room_type', $payload)) {
+        $nextRoomType = trim((string)$payload['room_type']);
         $updates[] = 'room_type = :room_type';
-        $params[':room_type'] = trim((string)$payload['room_type']);
+        $params[':room_type'] = $nextRoomType;
     }
-    if (array_key_exists('capacity', $payload)) {
-        $capacity = parse_positive_int($payload['capacity']);
-        if ($capacity === null) {
-            json_response(false, 'Validation failed.', new stdClass(), ['capacity must be a positive integer.'], 400);
+    if (array_key_exists('capacity', $payload) || array_key_exists('room_type', $payload)) {
+        $fixedCapacity = fixed_room_capacity($nextRoomType);
+        $capacitySource = array_key_exists('capacity', $payload) ? $payload['capacity'] : ($existing['capacity'] ?? null);
+        $capacity = $fixedCapacity ?? parse_positive_int($capacitySource);
+        if ($capacity === null || $capacity > 10) {
+            json_response(false, 'Validation failed.', new stdClass(), ['capacity must be between 1 and 10 tenants.'], 400);
         }
         $updates[] = 'capacity = :capacity';
         $params[':capacity'] = $capacity;
@@ -315,8 +357,8 @@ function handle_rooms_update(array $actor, array $payload): void
     }
     if (array_key_exists('floor_number', $payload)) {
         $floorNumber = parse_non_negative_int($payload['floor_number']);
-        if (($payload['floor_number'] ?? '') !== '' && $floorNumber === null) {
-            json_response(false, 'Validation failed.', new stdClass(), ['floor_number must be zero or a positive integer.'], 400);
+        if (($payload['floor_number'] ?? '') !== '' && ($floorNumber === null || $floorNumber > 10)) {
+            json_response(false, 'Validation failed.', new stdClass(), ['floor_number must be from 0 to 10.'], 400);
         }
         $updates[] = 'floor_number = :floor_number';
         $params[':floor_number'] = $floorNumber;
@@ -328,8 +370,8 @@ function handle_rooms_update(array $actor, array $payload): void
     }
     if (isset($_FILES['photos']) && is_array($_FILES['photos'])) {
         $existingPhotos = decode_json_array($existing['photos'] ?? null);
-        $newPhotos = store_room_photo_uploads($roomId, max(5 - count($existingPhotos), 0));
-        $photos = array_slice(array_values(array_merge($existingPhotos, $newPhotos)), 0, 5);
+        $newPhotos = store_room_photo_uploads($roomId, max(10 - count($existingPhotos), 0));
+        $photos = array_slice(array_values(array_merge($existingPhotos, $newPhotos)), 0, 10);
         $updates[] = 'photos = :photos';
         $params[':photos'] = json_encode($photos, JSON_UNESCAPED_UNICODE);
     }
@@ -352,7 +394,7 @@ function handle_rooms_update(array $actor, array $payload): void
     $fetch->execute([':room_id' => $roomId]);
     $room = $fetch->fetch();
 
-    json_response(true, 'Room updated successfully.', $room ? normalize_room_row($room) : new stdClass(), []);
+    json_response(true, 'Room updated successfully.', $room ? normalize_room_row($room, true) : new stdClass(), []);
 }
 
 function handle_rooms_delete(array $actor): void
@@ -468,7 +510,7 @@ function handle_rooms_archive(array $actor, bool $archive): void
     json_response(
         true,
         $archive ? 'Room archived successfully.' : 'Room unarchived successfully.',
-        $updated ? normalize_room_row($updated) : new stdClass(),
+        $updated ? normalize_room_row($updated, true) : new stdClass(),
         []
     );
 }
@@ -501,8 +543,8 @@ function handle_rooms_upload_photos(array $actor): void
     }
 
     $existingPhotos = decode_json_array($room['photos'] ?? null);
-    $newPhotos = store_room_photo_uploads($roomId, max(5 - count($existingPhotos), 0));
-    $photos = array_slice(array_values(array_merge($existingPhotos, $newPhotos)), 0, 5);
+    $newPhotos = store_room_photo_uploads($roomId, max(10 - count($existingPhotos), 0));
+    $photos = array_slice(array_values(array_merge($existingPhotos, $newPhotos)), 0, 10);
 
     $update = db()->prepare('UPDATE rooms SET photos = :photos WHERE room_id = :room_id');
     $update->execute([
@@ -534,10 +576,11 @@ function room_has_active_tenant(int $roomId): bool
     return (bool)$query->fetchColumn();
 }
 
-function normalize_room_row(array $row): array
+function normalize_room_row(array $row, bool $includeOccupant = false): array
 {
     $roomId = (int)($row['room_id'] ?? 0);
     $photos = decode_json_array($row['photos'] ?? null);
+    $approvedTenantCount = count_room_approved_tenants($roomId);
     $row['room_id'] = $roomId;
     $row['boarding_house_id'] = isset($row['boarding_house_id']) ? (int)$row['boarding_house_id'] : null;
     $row['capacity'] = isset($row['capacity']) ? (int)$row['capacity'] : null;
@@ -546,19 +589,34 @@ function normalize_room_row(array $row): array
         ? (int)$row['floor_number']
         : null;
     $row['is_archived'] = (int)($row['is_archived'] ?? 0) === 1;
+    $row['occupied_count'] = $approvedTenantCount;
+    $row['remaining_capacity'] = max((int)($row['capacity'] ?? 0) - $approvedTenantCount, 0);
+    $row['occupancy_summary'] = $approvedTenantCount . ' tenant(s) inside, ' . $row['remaining_capacity'] . ' slot(s) left';
     if ($row['is_archived']) {
         $row['availability_status'] = 'archived';
+    } elseif (($row['availability_status'] ?? '') !== 'unavailable') {
+        $row['availability_status'] = $row['remaining_capacity'] > 0 ? 'available' : 'occupied';
     }
     $row['photos'] = $photos;
     $row['photo_urls'] = array_map('backend_asset_url', $photos);
     $row['first_photo_url'] = !empty($photos) ? backend_asset_url((string)$photos[0]) : null;
     $row['room_amenities'] = fetch_room_amenities($roomId, (string)($row['amenities'] ?? ''));
 
-    $occupant = find_room_occupant($roomId);
-    $row['occupant'] = $occupant;
-    $row['occupant_name'] = $occupant['full_name'] ?? null;
+    if ($includeOccupant) {
+        $occupants = find_room_occupants($roomId);
+        $row['occupants'] = $occupants;
+        $row['occupant'] = $occupants[0] ?? null;
+        $row['occupant_name'] = count($occupants) > 1
+            ? count($occupants) . ' tenants'
+            : ($occupants[0]['full_name'] ?? null);
+    }
 
     return $row;
+}
+
+function should_include_room_occupant(?array $actor): bool
+{
+    return $actor !== null && in_array((string)$actor['role'], ['owner', 'admin'], true);
 }
 
 function parse_room_amenities_payload(array $payload): array
@@ -662,7 +720,20 @@ function fetch_room_amenities(int $roomId, string $fallbackAmenities): array
     return $items;
 }
 
-function find_room_occupant(int $roomId): ?array
+function count_room_approved_tenants(int $roomId): int
+{
+    $query = db()->prepare(
+        "SELECT COUNT(*)
+         FROM reservations
+         WHERE room_id = :room_id
+           AND status = 'approved'"
+    );
+    $query->execute([':room_id' => $roomId]);
+
+    return (int)$query->fetchColumn();
+}
+
+function find_room_occupants(int $roomId): array
 {
     $query = db()->prepare(
         "SELECT u.user_id, u.full_name, u.email, u.contact_number, rv.move_in_date, rv.reservation_id
@@ -670,24 +741,19 @@ function find_room_occupant(int $roomId): ?array
          INNER JOIN users u ON u.user_id = rv.user_id
          WHERE rv.room_id = :room_id
            AND rv.status = 'approved'
-         ORDER BY rv.reservation_id DESC
-         LIMIT 1"
+         ORDER BY rv.reservation_id DESC"
     );
     $query->execute([':room_id' => $roomId]);
-    $row = $query->fetch();
+    $rows = $query->fetchAll();
 
-    if (!$row) {
-        return null;
-    }
-
-    return [
+    return array_map(static fn(array $row): array => [
         'user_id' => (int)$row['user_id'],
         'full_name' => $row['full_name'],
         'email' => $row['email'],
         'contact_number' => $row['contact_number'],
         'move_in_date' => $row['move_in_date'],
         'reservation_id' => (int)$row['reservation_id'],
-    ];
+    ], $rows);
 }
 
 function store_room_photo_uploads(int $roomId, int $maxFiles): array

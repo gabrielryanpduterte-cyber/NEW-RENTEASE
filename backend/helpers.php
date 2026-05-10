@@ -547,6 +547,11 @@ function ensure_seeker_feature_schema(): void
 function ensure_owner_feature_schema(): void
 {
     if (db_table_exists('boarding_house')) {
+        db_ensure_column(
+            'boarding_house',
+            'property_type',
+            "ENUM('boarding_house','apartment','dormitory','condominium','bedspace','other') NOT NULL DEFAULT 'boarding_house'"
+        );
         db_ensure_column('boarding_house', 'cover_photo', 'VARCHAR(255) NULL');
         db_ensure_column('boarding_house', 'contact_number', 'VARCHAR(20) NULL');
         db_ensure_column('boarding_house', 'facebook_page', 'VARCHAR(255) NULL');
@@ -630,6 +635,15 @@ function ensure_owner_feature_schema(): void
     );
 
     if (db_table_exists('payments')) {
+        try {
+            db()->exec(
+                "ALTER TABLE payments
+                 MODIFY payment_status ENUM('paid','unpaid','pending_verification')
+                 NOT NULL DEFAULT 'unpaid'"
+            );
+        } catch (Throwable $exception) {
+            // Existing databases may already use a compatible VARCHAR/ENUM definition.
+        }
         db_ensure_column('payments', 'billing_cycle_id', 'INT(10) UNSIGNED NULL');
         db_ensure_column(
             'payments',

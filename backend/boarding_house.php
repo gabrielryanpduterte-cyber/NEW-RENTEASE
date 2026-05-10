@@ -10,7 +10,7 @@ $payload = in_array($method, ['POST', 'PUT', 'PATCH'], true) ? request_payload()
 $action = request_action($payload);
 
 try {
-    $actor = require_auth();
+    $actor = $method === 'GET' ? current_user() : require_auth();
 
     if ($method === 'GET') {
         handle_boarding_house_get($actor);
@@ -36,7 +36,7 @@ try {
     handle_exception($exception, 'Boarding house request failed', $user ? (int)$user['user_id'] : null);
 }
 
-function handle_boarding_house_get(array $actor): void
+function handle_boarding_house_get(?array $actor): void
 {
     $boardingHouseId = parse_positive_int($_GET['boarding_house_id'] ?? null);
     if ($boardingHouseId !== null) {
@@ -53,7 +53,7 @@ function handle_boarding_house_get(array $actor): void
             json_response(false, 'Boarding house not found.', new stdClass(), [], 404);
         }
 
-        json_response(true, 'Boarding house fetched successfully.', normalize_boarding_house_row($item), []);
+        json_response(true, 'Boarding house fetched successfully.', normalize_boarding_house_row($item, $actor === null), []);
     }
 
     $conditions = [];
@@ -65,9 +65,15 @@ function handle_boarding_house_get(array $actor): void
         $params[':owner_id'] = $ownerId;
     }
 
-    if ($actor['role'] === 'owner' && $ownerId === null) {
+    if ($actor !== null && $actor['role'] === 'owner' && $ownerId === null) {
         $conditions[] = 'b.owner_id = :actor_owner_id';
         $params[':actor_owner_id'] = (int)$actor['user_id'];
+    }
+
+    $propertyType = normalize_property_type($_GET['property_type'] ?? null, true);
+    if ($propertyType !== null) {
+        $conditions[] = 'b.property_type = :property_type';
+        $params[':property_type'] = $propertyType;
     }
 
     $sql = 'SELECT b.*, u.full_name AS owner_name, u.email AS owner_email
@@ -82,7 +88,13 @@ function handle_boarding_house_get(array $actor): void
     $query->execute($params);
     $items = $query->fetchAll();
 
-    json_response(true, 'Boarding houses fetched successfully.', array_map('normalize_boarding_house_row', $items), []);
+    $isPublic = $actor === null;
+    json_response(
+        true,
+        'Boarding houses fetched successfully.',
+        array_map(static fn(array $item): array => normalize_boarding_house_row($item, $isPublic), $items),
+        []
+    );
 }
 
 function handle_boarding_house_create(array $actor, array $payload): void
@@ -97,6 +109,7 @@ function handle_boarding_house_create(array $actor, array $payload): void
     $address = trim((string)$payload['address']);
     $description = trim((string)($payload['description'] ?? ''));
     $houseRules = trim((string)($payload['house_rules'] ?? ''));
+    $propertyType = normalize_property_type($payload['property_type'] ?? null);
     $contactNumber = trim((string)($payload['contact_number'] ?? ''));
     $facebookPage = trim((string)($payload['facebook_page'] ?? ''));
     $amenitiesList = normalize_amenities_payload($payload['amenities_list'] ?? ($payload['amenities'] ?? []));
@@ -139,16 +152,17 @@ function handle_boarding_house_create(array $actor, array $payload): void
 
     $insert = db()->prepare(
         'INSERT INTO boarding_house (
-            owner_id, house_name, address, description, house_rules,
+            owner_id, house_name, property_type, address, description, house_rules,
             contact_number, facebook_page, amenities_list, cover_photo
          ) VALUES (
-            :owner_id, :house_name, :address, :description, :house_rules,
+            :owner_id, :house_name, :property_type, :address, :description, :house_rules,
             :contact_number, :facebook_page, :amenities_list, :cover_photo
          )'
     );
     $insert->execute([
         ':owner_id' => $ownerId,
         ':house_name' => $houseName,
+        ':property_type' => $propertyType,
         ':address' => $address,
         ':description' => $description,
         ':house_rules' => $houseRules,
@@ -196,6 +210,10 @@ function handle_boarding_house_update(array $actor, array $payload): void
     if (array_key_exists('house_name', $payload)) {
         $updates[] = 'house_name = :house_name';
         $params[':house_name'] = trim((string)$payload['house_name']);
+    }
+    if (array_key_exists('property_type', $payload)) {
+        $updates[] = 'property_type = :property_type';
+        $params[':property_type'] = normalize_property_type($payload['property_type']);
     }
     if (array_key_exists('address', $payload)) {
         $updates[] = 'address = :address';
@@ -316,14 +334,40 @@ function handle_boarding_house_delete(array $actor): void
     json_response(true, 'Boarding house deleted successfully.', new stdClass(), []);
 }
 
-function normalize_boarding_house_row(array $row): array
+function normalize_boarding_house_row(array $row, bool $isPublic = false): array
 {
     $coverPhoto = trim((string)($row['cover_photo'] ?? ''));
     $row['boarding_house_id'] = isset($row['boarding_house_id']) ? (int)$row['boarding_house_id'] : null;
     $row['owner_id'] = isset($row['owner_id']) ? (int)$row['owner_id'] : null;
+    $row['property_type'] = normalize_property_type($row['property_type'] ?? null);
     $row['amenities_list'] = decode_json_array($row['amenities_list'] ?? null);
     $row['cover_photo_url'] = $coverPhoto !== '' ? backend_asset_url($coverPhoto) : null;
+    if ($isPublic) {
+        unset($row['owner_email']);
+    }
     return $row;
+}
+
+function normalize_property_type($value, bool $allowNull = false): ?string
+{
+    $type = strtolower(trim((string)($value ?? '')));
+    if ($type === '') {
+        return $allowNull ? null : 'boarding_house';
+    }
+
+    $type = str_replace([' ', '-'], '_', $type);
+    if ($type === 'boardinghouse') {
+        $type = 'boarding_house';
+    }
+    if ($type === 'condo') {
+        $type = 'condominium';
+    }
+
+    if (!in_array($type, ['boarding_house', 'apartment', 'dormitory', 'condominium', 'bedspace', 'other'], true)) {
+        json_response(false, 'Validation failed.', new stdClass(), ['property_type is invalid.'], 400);
+    }
+
+    return $type;
 }
 
 function normalize_amenities_payload($value): array

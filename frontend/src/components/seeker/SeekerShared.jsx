@@ -1,13 +1,14 @@
-import { FileUp, Loader2 } from 'lucide-react';
+import { FileUp, Loader2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { statusClassName } from '../../utils/format.js';
+import { IMAGE_UPLOAD_ACCEPT, prepareUploadFile } from '../../utils/imageUpload.js';
 
 export function SeekerStatusPill({ status }) {
   const normalized = String(status || 'pending').toLowerCase();
 
   return (
     <span className={`status-pill ${statusClassName(normalized)}`}>
-      {normalized}
+      {normalized.replaceAll('_', ' ')}
     </span>
   );
 }
@@ -73,14 +74,17 @@ export function ConfirmModal({
 }
 
 export function FileUpload({
-  accept = 'image/*,.pdf',
+  accept = `${IMAGE_UPLOAD_ACCEPT},application/pdf,.pdf`,
   maxSizeMB = 5,
   onFileSelect,
   preview = true,
   label = 'Choose file',
+  allowPdf = true,
 }) {
   const [file, setFile] = useState(null);
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
+  const [processing, setProcessing] = useState(false);
   const previewUrl = useMemo(() => {
     if (!preview || !file || !file.type.startsWith('image/')) {
       return '';
@@ -97,9 +101,10 @@ export function FileUpload({
     };
   }, [previewUrl]);
 
-  function onChange(event) {
+  async function onChange(event) {
     const selected = event.target.files?.[0] || null;
     setError('');
+    setInfo('');
 
     if (!selected) {
       setFile(null);
@@ -107,31 +112,55 @@ export function FileUpload({
       return;
     }
 
-    if (selected.size > maxSizeMB * 1024 * 1024) {
-      setFile(null);
-      setError(`File must be ${maxSizeMB} MB or smaller.`);
-      onFileSelect?.(null);
-      return;
-    }
+    setProcessing(true);
+    try {
+      const prepared = await prepareUploadFile(selected, {
+        maxSizeMB,
+        allowPdf,
+      });
 
-    setFile(selected);
-    onFileSelect?.(selected);
+      setFile(prepared.file);
+      setInfo(prepared.message);
+      onFileSelect?.(prepared.file);
+      event.target.value = '';
+    } catch (fileError) {
+      setFile(null);
+      setError(fileError?.message || 'Unable to prepare file for upload.');
+      onFileSelect?.(null);
+      event.target.value = '';
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  function clearSelectedFile() {
+    setFile(null);
+    setError('');
+    setInfo('');
+    onFileSelect?.(null);
   }
 
   return (
     <div className="re-file-upload">
       <label>
         <FileUp size={18} />
-        <span>{file ? file.name : label}</span>
-        <input type="file" accept={accept} onChange={onChange} />
+        <span>{processing ? 'Preparing file...' : file ? file.name : label}</span>
+        <input type="file" accept={accept} onChange={onChange} disabled={processing} />
       </label>
       {file && (
         <p>
           {(file.size / 1024 / 1024).toFixed(2)} MB
         </p>
       )}
+      {file && (
+        <button type="button" className="re-file-remove" onClick={clearSelectedFile} aria-label="Remove selected file">
+          <X size={15} />
+          Remove
+        </button>
+      )}
       {previewUrl && <img src={previewUrl} alt="Selected file preview" />}
       {file && !previewUrl && <p>{file.type || 'Selected file'}</p>}
+      {info && <p className="re-upload-note">{info}</p>}
       {error && <p className="re-form-error">{error}</p>}
     </div>
   );

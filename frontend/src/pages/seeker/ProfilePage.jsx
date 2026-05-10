@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Camera, KeyRound, ShieldPlus, UserRound } from 'lucide-react';
+import { Camera, KeyRound, ShieldPlus, UserRound, X } from 'lucide-react';
 import { authApi } from '../../api/client.js';
 import { useAuth } from '../../auth/useAuth.js';
 import AppShell from '../../components/AppShell.jsx';
+import PasswordInput from '../../components/PasswordInput.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
+import { IMAGE_UPLOAD_ACCEPT, prepareUploadFile } from '../../utils/imageUpload.js';
 
 function passwordStrength(value) {
   let score = 0;
@@ -30,6 +32,8 @@ export default function ProfilePage() {
     emergency_contact_number: user.emergency_contact_number || '',
   });
   const [profilePhoto, setProfilePhoto] = useState(null);
+  const [photoStatus, setPhotoStatus] = useState('');
+  const [preparingPhoto, setPreparingPhoto] = useState(false);
   const [savingPersonal, setSavingPersonal] = useState(false);
   const [savingEmergency, setSavingEmergency] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
@@ -90,12 +94,47 @@ export default function ProfilePage() {
       await authApi.updateProfile(body);
       await refreshSession({ silent: true });
       setProfilePhoto(null);
+      setPhotoStatus('');
       showToast('Profile information updated.', 'success');
     } catch (error) {
       showToast(error?.errors?.[0] || error?.message || 'Unable to update profile.', 'error');
     } finally {
       setSavingPersonal(false);
     }
+  }
+
+  async function handleProfilePhotoChange(event) {
+    const selected = event.target.files?.[0] || null;
+    setPhotoStatus('');
+
+    if (!selected) {
+      setProfilePhoto(null);
+      return;
+    }
+
+    setPreparingPhoto(true);
+    try {
+      const prepared = await prepareUploadFile(selected, {
+        maxSizeMB: 2,
+        maxWidth: 900,
+        maxHeight: 900,
+        allowPdf: false,
+      });
+      setProfilePhoto(prepared.file);
+      setPhotoStatus(prepared.message || 'Profile photo ready.');
+      event.target.value = '';
+    } catch (error) {
+      setProfilePhoto(null);
+      setPhotoStatus(error?.message || 'Unable to prepare profile photo.');
+      event.target.value = '';
+    } finally {
+      setPreparingPhoto(false);
+    }
+  }
+
+  function clearProfilePhoto() {
+    setProfilePhoto(null);
+    setPhotoStatus('');
   }
 
   async function saveEmergency(event) {
@@ -150,13 +189,21 @@ export default function ProfilePage() {
             <div className="profile-photo-field seeker-form-wide">
               <label>
                 <img src={photoPreview || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name || 'User')}&background=2D6A4F&color=fff`} alt="Profile" />
-                <span><Camera size={16} /> Change Photo</span>
+                <span><Camera size={16} /> {preparingPhoto ? 'Converting...' : 'Change Photo'}</span>
                 <input
                   type="file"
-                  accept="image/*"
-                  onChange={(event) => setProfilePhoto(event.target.files?.[0] || null)}
+                  accept={IMAGE_UPLOAD_ACCEPT}
+                  onChange={handleProfilePhotoChange}
+                  disabled={preparingPhoto}
                 />
               </label>
+              {profilePhoto && (
+                <button type="button" className="re-file-remove" onClick={clearProfilePhoto}>
+                  <X size={15} />
+                  Remove selected photo
+                </button>
+              )}
+              {photoStatus && <small className="re-upload-note">{photoStatus}</small>}
             </div>
 
             <label>
@@ -236,8 +283,7 @@ export default function ProfilePage() {
           <form onSubmit={savePassword} className="seeker-form-grid">
             <label>
               <span>Current Password</span>
-              <input
-                type="password"
+              <PasswordInput
                 autoComplete="current-password"
                 value={passwordForm.current_password}
                 onChange={(event) => setPasswordForm((current) => ({ ...current, current_password: event.target.value }))}
@@ -246,8 +292,7 @@ export default function ProfilePage() {
             </label>
             <label>
               <span>New Password</span>
-              <input
-                type="password"
+              <PasswordInput
                 autoComplete="new-password"
                 minLength={8}
                 value={passwordForm.new_password}
@@ -258,8 +303,7 @@ export default function ProfilePage() {
             </label>
             <label>
               <span>Confirm New Password</span>
-              <input
-                type="password"
+              <PasswordInput
                 autoComplete="new-password"
                 minLength={8}
                 value={passwordForm.confirm_password}

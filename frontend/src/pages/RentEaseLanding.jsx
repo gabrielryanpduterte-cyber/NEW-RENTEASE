@@ -26,7 +26,7 @@ import {
 
 const navLinks = [
   { label: 'Home', href: '#home' },
-  { label: 'Rooms', href: '/rooms' },
+  { label: 'Properties', href: '/properties' },
   { label: 'About', href: '#about' },
   { label: 'Contact', href: '#contact' },
 ];
@@ -128,12 +128,12 @@ export default function RentEaseLanding() {
           <p className="re-eyebrow">Philippine boarding house rentals</p>
           <h1>Your Home Away From Home</h1>
           <p>
-            Find warm, verified, student-friendly rooms with clear monthly rates, real-time
-            availability, and guardian access built in.
+            Find verified boarding houses, apartments, dormitories, and student-friendly rooms
+            with clear monthly rates, availability, and guardian access built in.
           </p>
           <div className="re-hero-actions">
-            <button type="button" className="re-btn re-btn-gold" onClick={() => navigate('/rooms')}>
-              Browse Rooms
+            <button type="button" className="re-btn re-btn-gold" onClick={() => navigate('/properties')}>
+              Browse Properties
             </button>
             <button type="button" className="re-btn re-btn-outline-light" onClick={() => navigate('/login')}>
               Sign In
@@ -153,9 +153,9 @@ export default function RentEaseLanding() {
 
       <section className="re-section">
         <div className="re-section-heading">
-          <p className="re-eyebrow">Featured rooms</p>
-          <h2>Comfortable rooms near campus life</h2>
-          <Link to="/rooms">View all rooms</Link>
+          <p className="re-eyebrow">Featured room previews</p>
+          <h2>Start with properties, then compare their available rooms</h2>
+          <Link to="/properties">View all properties</Link>
         </div>
         <div className="re-room-grid">
           {featuredRooms.slice(0, 3).map((room) => (
@@ -175,12 +175,12 @@ export default function RentEaseLanding() {
             <p className="re-eyebrow">Student-first search</p>
             <h2>Rooms that show the details before you ask</h2>
             <p>
-              Browse rates, capacity, amenities, room status, and house rules in one place so
+            Browse property type, rates, capacity, amenities, room status, and house rules so
               moving decisions feel clear before reservation.
             </p>
             <ul>
               <li>
-                <CheckCircle2 size={18} /> Availability pills and room filters
+                <CheckCircle2 size={18} /> Property-first browsing with room filters
               </li>
               <li>
                 <CheckCircle2 size={18} /> Clean room cards with monthly pricing
@@ -219,7 +219,7 @@ export default function RentEaseLanding() {
           <img src={featureImages.family} alt="Family reviewing housing information" loading="lazy" />
           <div>
             <p className="re-eyebrow">Guardian visibility</p>
-            <h2>Parent access without exposing admin tools</h2>
+            <h2>Parent access without exposing landlord tools</h2>
             <p>
               Guardians get a focused read-only view of dependent room, reservation, and payment
               status without landlord-only controls.
@@ -290,22 +290,22 @@ export default function RentEaseLanding() {
 
       <section id="contact" className="re-cta-band">
         <div>
-          <p className="re-eyebrow">Ready to compare rooms?</p>
-          <h2>Start with available rooms and reserve when you are ready.</h2>
+          <p className="re-eyebrow">Ready to compare properties?</p>
+          <h2>Start with available properties and reserve a room when you are ready.</h2>
         </div>
-        <button type="button" className="re-btn re-btn-gold" onClick={() => navigate('/rooms')}>
-          Browse Rooms
+        <button type="button" className="re-btn re-btn-gold" onClick={() => navigate('/properties')}>
+          Browse Properties
         </button>
       </section>
 
       <footer className="re-footer">
         <div>
           <h3>RentEase</h3>
-          <p>Boarding house rental management for students, parents, landlords, and admins.</p>
+          <p>Boarding house rental management for students, parents, and landlords.</p>
         </div>
         <div>
           <h4>Quick Links</h4>
-          <Link to="/rooms">Rooms</Link>
+          <Link to="/properties">Properties</Link>
           <Link to="/login">Login</Link>
           <Link to="/register">Register</Link>
         </div>

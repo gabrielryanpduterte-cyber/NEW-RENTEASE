@@ -40,6 +40,42 @@ function appendQuery(endpoint, query = {}) {
   return `${endpoint}${joiner}${queryString}`;
 }
 
+export function normalizeApiAssetUrl(value) {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  const backendPath = '/rentease/backend';
+  if (value.startsWith(backendPath)) {
+    return `${API_BASE_URL}${value.slice(backendPath.length)}`;
+  }
+
+  const localBackendMatch = value.match(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\/rentease\/backend(\/.*)$/i);
+  if (localBackendMatch) {
+    return `${API_BASE_URL}${localBackendMatch[1]}`;
+  }
+
+  return value;
+}
+
+function normalizeApiPayload(value) {
+  if (typeof value === 'string') {
+    return normalizeApiAssetUrl(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => normalizeApiPayload(item));
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [key, normalizeApiPayload(nestedValue)]),
+    );
+  }
+
+  return value;
+}
+
 async function parseApiResponse(response) {
   const text = await response.text();
   if (!text) {
@@ -52,7 +88,7 @@ async function parseApiResponse(response) {
   }
 
   try {
-    return JSON.parse(text);
+    return normalizeApiPayload(JSON.parse(text));
   } catch {
     return {
       success: false,

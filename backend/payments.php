@@ -67,6 +67,10 @@ function handle_payments_get(array $actor): void
         json_response(true, 'Payment fetched successfully.', normalize_payment_row($payment), []);
     }
 
+    if ($actor['role'] === 'seeker') {
+        ensure_payment_records_for_seeker((int)$actor['user_id']);
+    }
+
     $conditions = [];
     $params = [];
     $parentLinkedSeekerIds = [];
@@ -226,8 +230,8 @@ function handle_payments_create(array $actor, array $payload): void
     if ($paymentStatus === '') {
         $paymentStatus = $paidValue >= $dueValue ? 'paid' : 'unpaid';
     }
-    if (!in_array($paymentStatus, ['paid', 'unpaid'], true)) {
-        json_response(false, 'Validation failed.', new stdClass(), ['payment_status must be paid or unpaid.'], 400);
+    if (!in_array($paymentStatus, ['paid', 'unpaid', 'pending_verification'], true)) {
+        json_response(false, 'Validation failed.', new stdClass(), ['payment_status must be paid, unpaid, or pending_verification.'], 400);
     }
 
     $insert = db()->prepare(
@@ -285,46 +289,80 @@ function handle_payment_upload_proof(array $actor, array $payload): void
     if ((int)$payment['user_id'] !== (int)$actor['user_id']) {
         json_response(false, 'Forbidden.', new stdClass(), ['You can only upload proof for your own payments.'], 403);
     }
-    if (strtolower((string)$payment['payment_status']) !== 'unpaid') {
-        json_response(false, 'Validation failed.', new stdClass(), ['Proof can only be uploaded for unpaid records.'], 400);
+    $currentStatus = strtolower((string)$payment['payment_status']);
+    if ($currentStatus === 'paid') {
+        json_response(false, 'Validation failed.', new stdClass(), ['This payment is already confirmed by the owner.'], 400);
     }
-    if (!isset($_FILES['proof']) || !is_array($_FILES['proof'])) {
-        json_response(false, 'Validation failed.', new stdClass(), ['proof is required as multipart form-data.'], 400);
+    if (!in_array($currentStatus, ['unpaid', 'pending_verification'], true)) {
+        json_response(false, 'Validation failed.', new stdClass(), ['Payment proof can only be submitted for unpaid records.'], 400);
     }
 
-    $proofPath = store_uploaded_file(
-        $_FILES['proof'],
-        'storage/private/proofs/' . (int)$actor['user_id'],
-        [
-            'application/pdf' => 'pdf',
-            'image/jpeg' => 'jpg',
-            'image/png' => 'png',
-        ],
-        5 * 1024 * 1024,
-        'proof'
-    );
-
+    $amountPaid = $payload['amount_paid'] ?? null;
+    $paymentDate = trim((string)($payload['payment_date'] ?? ''));
+    $paymentMethod = strtolower(trim((string)($payload['payment_method'] ?? '')));
     $notes = trim((string)($payload['notes'] ?? ''));
-    if ($notes !== '' && strlen($notes) > 1000) {
-        json_response(false, 'Validation failed.', new stdClass(), ['notes cannot exceed 1000 characters.'], 400);
+
+    $errors = [];
+    if (!is_numeric((string)$amountPaid) || (float)$amountPaid <= 0) {
+        $errors[] = 'amount_paid must be greater than 0.';
+    }
+    if (!is_valid_payment_date($paymentDate)) {
+        $errors[] = 'payment_date must use YYYY-MM-DD format.';
+    }
+    if (!in_array($paymentMethod, ['cash', 'gcash', 'bank_transfer', 'other'], true)) {
+        $errors[] = 'payment_method must be cash, gcash, bank_transfer, or other.';
+    }
+    if (strlen($notes) > 1000) {
+        $errors[] = 'notes cannot exceed 1000 characters.';
+    }
+    if (!empty($errors)) {
+        json_response(false, 'Validation failed.', new stdClass(), $errors, 400);
     }
 
+    $proofPath = null;
+    if (isset($_FILES['proof']) && is_array($_FILES['proof']) && (int)($_FILES['proof']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+        $proofPath = store_uploaded_file(
+            $_FILES['proof'],
+            'storage/private/proofs/' . (int)$actor['user_id'],
+            [
+                'application/pdf' => 'pdf',
+                'image/jpeg' => 'jpg',
+                'image/png' => 'png',
+                'image/webp' => 'webp',
+            ],
+            5 * 1024 * 1024,
+            'proof'
+        );
+    }
+
+    $proofSql = $proofPath !== null ? 'proof_of_payment_path = :proof_of_payment_path,' : '';
     $update = db()->prepare(
-        'UPDATE payments
-         SET proof_of_payment_path = :proof_of_payment_path,
+        "UPDATE payments
+         SET {$proofSql}
+             amount_paid = :amount_paid,
+             payment_status = 'pending_verification',
+             payment_date = :payment_date,
+             payment_method = :payment_method,
+             received_by = NULL,
              notes = :notes
-         WHERE payment_id = :payment_id'
+         WHERE payment_id = :payment_id"
     );
-    $update->execute([
-        ':proof_of_payment_path' => $proofPath,
+    $params = [
+        ':amount_paid' => (float)$amountPaid,
+        ':payment_date' => $paymentDate,
+        ':payment_method' => $paymentMethod,
         ':notes' => $notes !== '' ? $notes : ($payment['notes'] ?? null),
         ':payment_id' => $paymentId,
-    ]);
+    ];
+    if ($proofPath !== null) {
+        $params[':proof_of_payment_path'] = $proofPath;
+    }
+    $update->execute($params);
 
-    log_activity((int)$actor['user_id'], 'Uploaded payment proof for ' . (string)$payment['billing_period'], 'payments');
+    log_activity((int)$actor['user_id'], 'Submitted payment for verification for ' . (string)$payment['billing_period'], 'payments');
 
     $updated = find_payment_for_action($paymentId);
-    json_response(true, 'Payment proof uploaded successfully.', $updated ? normalize_payment_row($updated) : new stdClass(), []);
+    json_response(true, 'Payment submitted for owner verification.', $updated ? normalize_payment_row($updated) : new stdClass(), []);
 }
 
 function handle_payment_proof_download(array $actor): void
@@ -420,8 +458,8 @@ function handle_payments_update(array $actor, array $payload): void
     }
     if (array_key_exists('payment_status', $payload)) {
         $status = strtolower(trim((string)$payload['payment_status']));
-        if (!in_array($status, ['paid', 'unpaid'], true)) {
-            json_response(false, 'Validation failed.', new stdClass(), ['payment_status must be paid or unpaid.'], 400);
+        if (!in_array($status, ['paid', 'unpaid', 'pending_verification'], true)) {
+            json_response(false, 'Validation failed.', new stdClass(), ['payment_status must be paid, unpaid, or pending_verification.'], 400);
         }
         $updates[] = 'payment_status = :payment_status';
         $params[':payment_status'] = $status;
@@ -553,6 +591,51 @@ function find_payment_for_action(int $paymentId): ?array
     $payment = $query->fetch();
 
     return $payment ?: null;
+}
+
+function ensure_payment_records_for_seeker(int $userId): void
+{
+    $query = db()->prepare(
+        "SELECT bc.billing_cycle_id, bc.reservation_id, bc.user_id, bc.room_id,
+                bc.billing_month, bc.amount_due, bc.due_date, bc.created_by
+         FROM billing_cycles bc
+         INNER JOIN reservations rv ON rv.reservation_id = bc.reservation_id
+         LEFT JOIN payments p ON p.billing_cycle_id = bc.billing_cycle_id
+         WHERE bc.user_id = :user_id
+           AND rv.status = 'approved'
+           AND p.payment_id IS NULL"
+    );
+    $query->execute([':user_id' => $userId]);
+    $cycles = $query->fetchAll();
+
+    if (empty($cycles)) {
+        return;
+    }
+
+    $insert = db()->prepare(
+        "INSERT INTO payments (
+            reservation_id, user_id, room_id, amount_due, amount_paid, payment_status,
+            payment_date, billing_period, recorded_by, billing_cycle_id, payment_method,
+            received_by, notes
+         ) VALUES (
+            :reservation_id, :user_id, :room_id, :amount_due, 0, 'unpaid',
+            :payment_date, :billing_period, :recorded_by, :billing_cycle_id, 'cash',
+            NULL, NULL
+         )"
+    );
+
+    foreach ($cycles as $cycle) {
+        $insert->execute([
+            ':reservation_id' => (int)$cycle['reservation_id'],
+            ':user_id' => (int)$cycle['user_id'],
+            ':room_id' => (int)$cycle['room_id'],
+            ':amount_due' => (float)$cycle['amount_due'],
+            ':payment_date' => $cycle['due_date'] ?: ((string)$cycle['billing_month'] . '-01'),
+            ':billing_period' => $cycle['billing_month'],
+            ':recorded_by' => (int)$cycle['created_by'],
+            ':billing_cycle_id' => (int)$cycle['billing_cycle_id'],
+        ]);
+    }
 }
 
 function normalize_payment_row(array $payment): array

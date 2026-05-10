@@ -15,6 +15,13 @@ export default {
     },
     extend: {
       colors: {
+        slate: "#1C1C1A",
+        ink: "#2E2E2B",
+        midtone: "#5C5B55",
+        ivory: "#F7F5F0",
+        warmwhite: "#EDEAE3",
+        gold: "#C9A96E",
+        "gold-light": "#E8D9BE",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

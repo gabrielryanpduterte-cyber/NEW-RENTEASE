@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { Camera, CheckCircle2, Home, Mail, Phone, UserRound } from 'lucide-react';
+import { Camera, CheckCircle2, Home, Mail, Phone, UserRound, X } from 'lucide-react';
 import { authApi } from '../api/client.js';
 import { useAuth } from '../auth/useAuth.js';
 import { roleDashboardPath } from '../utils/roles.js';
 import GoogleSignInButton from '../components/GoogleSignInButton.jsx';
+import PasswordInput from '../components/PasswordInput.jsx';
 import { authImage } from '../data/renteaseContent.js';
+import { IMAGE_UPLOAD_ACCEPT, prepareUploadFile } from '../utils/imageUpload.js';
 
 const registerRoles = [
   { value: 'seeker', label: 'Seeker' },
@@ -29,8 +31,27 @@ function RegisterPage() {
     emergency_contact_number: '',
     profile_photo: '',
   });
+  const [profilePhotoFile, setProfilePhotoFile] = useState(null);
+  const [profilePhotoStatus, setProfilePhotoStatus] = useState('');
+  const [preparingPhoto, setPreparingPhoto] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState('');
+
+  const profilePhotoPreview = useMemo(() => {
+    if (!profilePhotoFile) {
+      return '';
+    }
+
+    return URL.createObjectURL(profilePhotoFile);
+  }, [profilePhotoFile]);
+
+  useEffect(() => {
+    return () => {
+      if (profilePhotoPreview) {
+        URL.revokeObjectURL(profilePhotoPreview);
+      }
+    };
+  }, [profilePhotoPreview]);
 
   if (authState.status === 'authenticated') {
     return <Navigate to={roleDashboardPath(authState.user?.role)} replace />;
@@ -48,16 +69,20 @@ function RegisterPage() {
     setSubmitting(true);
 
     try {
-      await authApi.register({
-        full_name: form.full_name,
-        email: form.email,
-        password: form.password,
-        role: form.role,
-        contact_number: form.contact_number,
-        school_or_workplace: form.school_or_workplace,
-        emergency_contact_name: form.emergency_contact_name,
-        emergency_contact_number: form.emergency_contact_number,
-      });
+      const registerBody = new FormData();
+      registerBody.append('full_name', form.full_name);
+      registerBody.append('email', form.email);
+      registerBody.append('password', form.password);
+      registerBody.append('role', form.role);
+      registerBody.append('contact_number', form.contact_number);
+      registerBody.append('school_or_workplace', form.school_or_workplace);
+      registerBody.append('emergency_contact_name', form.emergency_contact_name);
+      registerBody.append('emergency_contact_number', form.emergency_contact_number);
+      if (profilePhotoFile) {
+        registerBody.append('profile_photo', profilePhotoFile);
+      }
+
+      await authApi.register(registerBody);
 
       const loginResult = await login({
         email: form.email,
@@ -90,6 +115,44 @@ function RegisterPage() {
   const handleGoogleError = (error) => {
     setFeedback(error || 'Google sign-in failed. Please try again.');
   };
+
+  async function handleProfilePhotoChange(event) {
+    const selected = event.target.files?.[0] || null;
+    setProfilePhotoStatus('');
+
+    if (!selected) {
+      setProfilePhotoFile(null);
+      setForm((current) => ({ ...current, profile_photo: '' }));
+      return;
+    }
+
+    setPreparingPhoto(true);
+    try {
+      const prepared = await prepareUploadFile(selected, {
+        maxSizeMB: 2,
+        maxWidth: 900,
+        maxHeight: 900,
+        allowPdf: false,
+      });
+      setProfilePhotoFile(prepared.file);
+      setForm((current) => ({ ...current, profile_photo: prepared.file?.name || '' }));
+      setProfilePhotoStatus(prepared.message || 'Profile photo ready.');
+      event.target.value = '';
+    } catch (error) {
+      setProfilePhotoFile(null);
+      setForm((current) => ({ ...current, profile_photo: '' }));
+      setProfilePhotoStatus(error?.message || 'Unable to prepare profile photo.');
+      event.target.value = '';
+    } finally {
+      setPreparingPhoto(false);
+    }
+  }
+
+  function clearProfilePhoto() {
+    setProfilePhotoFile(null);
+    setProfilePhotoStatus('');
+    setForm((current) => ({ ...current, profile_photo: '' }));
+  }
 
   const roleHint = {
     seeker: 'Find and reserve available boarding house rooms.',
@@ -127,9 +190,11 @@ function RegisterPage() {
 
       <section className="re-auth-panel">
         <div className="re-auth-card">
-          <p className="re-eyebrow">Create account</p>
+          <div className="theme-auth-row">
+            <p className="re-eyebrow">Create account</p>
+          </div>
           <h2>Register</h2>
-          <p>Admin accounts remain restricted to backend or administrator creation.</p>
+          <p>Create a student, parent, or landlord account to continue.</p>
 
           <form onSubmit={onSubmit} className="re-form-stack">
             <div className="re-role-tabs" role="tablist" aria-label="Registration role">
@@ -236,8 +301,7 @@ function RegisterPage() {
             <div className="re-form-two-col">
               <label>
                 <span>Password</span>
-                <input
-                  type="password"
+                <PasswordInput
                   autoComplete="new-password"
                   value={form.password}
                   onChange={(event) =>
@@ -251,8 +315,7 @@ function RegisterPage() {
 
               <label>
                 <span>Confirm password</span>
-                <input
-                  type="password"
+                <PasswordInput
                   autoComplete="new-password"
                   value={form.confirm_password}
                   onChange={(event) =>
@@ -267,18 +330,24 @@ function RegisterPage() {
 
             <label className="re-file-input">
               <Camera size={18} />
-              <span>{form.profile_photo || 'Upload profile photo'}</span>
+              <span>{preparingPhoto ? 'Converting profile photo...' : form.profile_photo || 'Upload profile photo'}</span>
               <input
                 type="file"
-                accept="image/*"
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    profile_photo: event.target.files?.[0]?.name || '',
-                  }))
-                }
+                accept={IMAGE_UPLOAD_ACCEPT}
+                onChange={handleProfilePhotoChange}
+                disabled={preparingPhoto}
               />
             </label>
+            {profilePhotoPreview && (
+              <div className="re-selected-photo-preview">
+                <button type="button" className="re-preview-remove" onClick={clearProfilePhoto} aria-label="Remove selected profile photo">
+                  <X size={14} />
+                </button>
+                <img src={profilePhotoPreview} alt="Selected profile preview" />
+                <span>Converted preview</span>
+              </div>
+            )}
+            {profilePhotoStatus && <small className="re-upload-note">{profilePhotoStatus}</small>}
 
             {feedback && <div className="re-error-panel">{feedback}</div>}
 

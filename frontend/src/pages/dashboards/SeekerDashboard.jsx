@@ -5,7 +5,7 @@ import { seekerDashboardApi } from '../../api/client.js';
 import { useAuth } from '../../auth/useAuth.js';
 import AppShell from '../../components/AppShell.jsx';
 import { EmptyState, LoadingSkeleton } from '../../components/seeker/SeekerShared.jsx';
-import { formatCurrency, formatDate, formatDateTime } from '../../utils/format.js';
+import { formatCurrency, formatDate } from '../../utils/format.js';
 
 function monthLabel(value = new Date()) {
   return new Intl.DateTimeFormat('en-PH', { month: 'long', year: 'numeric' }).format(value);
@@ -101,7 +101,7 @@ export default function SeekerDashboard() {
                     icon={Home}
                     title="You do not have a room yet."
                     description="Approved room details will appear here after landlord review."
-                    cta={<Link className="button-primary" to="/rooms">Browse Available Rooms</Link>}
+                    cta={<Link className="button-primary" to="/seeker/properties">Browse Properties</Link>}
                   />
                 )}
               </article>
@@ -131,7 +131,7 @@ export default function SeekerDashboard() {
                       <p>No rent record for {monthLabel()}.</p>
                     </>
                   )}
-                  <Link to="/dashboard/rent">View payment history</Link>
+                  <Link to="/dashboard/rent">Open payments</Link>
                 </div>
               </article>
             </div>
@@ -145,25 +145,6 @@ export default function SeekerDashboard() {
               </div>
             )}
 
-            <article className="seeker-status-card">
-              <div className="seeker-card-head">
-                <CalendarDays size={20} />
-                <h2>Recent Activity</h2>
-              </div>
-              {data.recent_activity?.length ? (
-                <div className="seeker-activity-list">
-                  {data.recent_activity.map((item) => (
-                    <div key={item.log_id}>
-                      <span>{item.affected_module}</span>
-                      <p>{item.action_performed}</p>
-                      <small>{formatDateTime(item.timestamp)}</small>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="seeker-muted">No activity yet.</p>
-              )}
-            </article>
           </>
         )}
       </section>

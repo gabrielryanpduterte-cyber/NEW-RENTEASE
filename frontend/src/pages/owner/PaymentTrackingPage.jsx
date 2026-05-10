@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarPlus, FileCheck2, Printer } from 'lucide-react';
+import { CalendarPlus, CheckCircle2, FileCheck2, Printer } from 'lucide-react';
 import { billingApi } from '../../api/client.js';
 import AppShell from '../../components/AppShell.jsx';
 import AsyncState from '../../components/AsyncState.jsx';
@@ -16,6 +16,20 @@ function todayValue() {
   const now = new Date();
   const offset = now.getTimezoneOffset() * 60000;
   return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+}
+
+function paymentMethodLabel(value) {
+  const labels = {
+    cash: 'Paid on-site',
+    gcash: 'GCash',
+    bank_transfer: 'Bank Transfer',
+    other: 'Other',
+  };
+  return labels[value] || value || '-';
+}
+
+function statusLabel(value) {
+  return String(value || '').replaceAll('_', ' ');
 }
 
 export default function PaymentTrackingPage() {
@@ -67,10 +81,10 @@ export default function PaymentTrackingPage() {
   function openPaymentModal(row) {
     setSelectedCycle(row);
     setPaymentForm({
-      payment_date: todayValue(),
-      amount_paid: String(row.amount_due || ''),
-      payment_method: 'cash',
-      notes: '',
+      payment_date: row.payment_date || todayValue(),
+      amount_paid: String(Number(row.amount_paid || 0) > 0 ? row.amount_paid : row.amount_due || ''),
+      payment_method: row.payment_method || 'cash',
+      notes: row.notes || '',
     });
   }
 
@@ -89,7 +103,7 @@ export default function PaymentTrackingPage() {
         payment_method: paymentForm.payment_method,
         notes: paymentForm.notes,
       });
-      showToast('Payment recorded.', 'success');
+      showToast(selectedCycle.payment_status === 'pending_verification' ? 'Payment verified.' : 'Payment recorded.', 'success');
       setSelectedCycle(null);
       await loadBilling(month);
     } catch (error) {
@@ -144,6 +158,7 @@ export default function PaymentTrackingPage() {
       subtitle="Generate monthly bills, verify proof badges, and record owner-confirmed payments."
       quickStats={[
         { label: 'Paid', value: String(state.summary.paid_count || 0), tone: 'mint' },
+        { label: 'Pending', value: String(state.summary.pending_count || 0), tone: 'amber' },
         { label: 'Unpaid', value: String(state.summary.unpaid_count || 0), tone: 'amber' },
         { label: 'No Record', value: String(state.summary.no_record_count || 0), tone: 'neutral' },
         { label: 'Collected', value: formatCurrency(state.summary.total_collected || 0), tone: 'mint' },
@@ -191,6 +206,7 @@ export default function PaymentTrackingPage() {
                   <th>Amount Paid</th>
                   <th>Status</th>
                   <th>Method</th>
+                  <th>Notes</th>
                   <th>Proof</th>
                   <th>Actions</th>
                 </tr>
@@ -205,14 +221,16 @@ export default function PaymentTrackingPage() {
                     <td>{formatCurrency(row.amount_paid)}</td>
                     <td>
                       <span className={`status-pill ${statusClassName(row.payment_status)}`}>
-                        {row.payment_status}
+                        {statusLabel(row.payment_status)}
                       </span>
                     </td>
-                    <td>{row.payment_method || '-'}</td>
+                    <td>{['paid', 'pending_verification'].includes(row.payment_status) ? paymentMethodLabel(row.payment_method) : '-'}</td>
+                    <td>{row.notes || '-'}</td>
                     <td>
                       {row.proof_url ? (
                         <button type="button" className="button-light" onClick={() => window.open(row.proof_url, '_blank', 'noopener,noreferrer')}>
                           <FileCheck2 size={15} />
+                          View
                         </button>
                       ) : '-'}
                     </td>
@@ -223,7 +241,12 @@ export default function PaymentTrackingPage() {
                         </button>
                       ) : (
                         <button type="button" className="button-light" onClick={() => openPaymentModal(row)} disabled={!row.billing_cycle_id}>
-                          Mark Paid
+                          {row.payment_status === 'pending_verification' ? (
+                            <>
+                              <CheckCircle2 size={15} />
+                              Verify
+                            </>
+                          ) : 'Mark Paid'}
                         </button>
                       )}
                     </td>
@@ -274,13 +297,26 @@ export default function PaymentTrackingPage() {
         <div className="modal-overlay" onClick={() => setSelectedCycle(null)}>
           <div className="modal-content" onClick={(event) => event.stopPropagation()}>
             <div className="modal-header">
-              <h2>Record Payment - {selectedCycle.tenant_name}</h2>
+              <h2>{selectedCycle.payment_status === 'pending_verification' ? 'Verify Payment' : 'Record Payment'} - {selectedCycle.tenant_name}</h2>
               <button type="button" className="modal-close" onClick={() => setSelectedCycle(null)}>×</button>
             </div>
             <form onSubmit={submitPayment}>
               <div className="mini-feedback mini-success">
                 <p>Room {selectedCycle.room_number} · Billing {selectedCycle.billing_month}</p>
               </div>
+              {selectedCycle.payment_status === 'pending_verification' && (
+                <div className="mini-feedback mini-success">
+                  <p>Seeker submitted this payment for owner verification before it becomes paid.</p>
+                </div>
+              )}
+              {selectedCycle.proof_url && (
+                <div className="form-group">
+                  <button type="button" className="button-light" onClick={() => window.open(selectedCycle.proof_url, '_blank', 'noopener,noreferrer')}>
+                    <FileCheck2 size={15} />
+                    View Submitted Proof
+                  </button>
+                </div>
+              )}
               <div className="form-row">
                 <div className="form-group">
                   <label>Payment date</label>
@@ -294,7 +330,7 @@ export default function PaymentTrackingPage() {
               <div className="form-group">
                 <label>Payment method</label>
                 <select value={paymentForm.payment_method} onChange={(event) => setPaymentForm((current) => ({ ...current, payment_method: event.target.value }))}>
-                  <option value="cash">Cash</option>
+                  <option value="cash">Paid on-site</option>
                   <option value="gcash">GCash</option>
                   <option value="bank_transfer">Bank Transfer</option>
                   <option value="other">Other</option>
@@ -302,11 +338,11 @@ export default function PaymentTrackingPage() {
               </div>
               <div className="form-group">
                 <label>Notes</label>
-                <textarea value={paymentForm.notes} onChange={(event) => setPaymentForm((current) => ({ ...current, notes: event.target.value }))} rows={3} maxLength={300} />
+                <textarea value={paymentForm.notes} onChange={(event) => setPaymentForm((current) => ({ ...current, notes: event.target.value }))} rows={3} maxLength={1000} />
               </div>
               <div className="form-actions">
                 <button type="submit" className="btn-primary" disabled={savingPayment}>
-                  {savingPayment ? 'Recording...' : 'Confirm Payment'}
+                  {savingPayment ? 'Saving...' : selectedCycle.payment_status === 'pending_verification' ? 'Verify as Paid' : 'Confirm Payment'}
                 </button>
                 <button type="button" className="btn-secondary" onClick={() => setSelectedCycle(null)}>Cancel</button>
               </div>

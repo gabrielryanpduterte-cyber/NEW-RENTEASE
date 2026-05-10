@@ -11,6 +11,7 @@ import AccountSettingsCard from '../../components/AccountSettingsCard.jsx';
 import AppShell from '../../components/AppShell.jsx';
 import AsyncState from '../../components/AsyncState.jsx';
 import ModuleCard from '../../components/ModuleCard.jsx';
+import PasswordInput from '../../components/PasswordInput.jsx';
 import {
   asArray,
   formatCurrency,
@@ -630,8 +631,7 @@ function AdminDashboard() {
             }
             required
           />
-          <input
-            type="password"
+          <PasswordInput
             placeholder="Password"
             value={userForm.password}
             onChange={(event) =>

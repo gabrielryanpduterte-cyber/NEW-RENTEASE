@@ -60,8 +60,13 @@ function owner_dashboard_room_stats(array $actor): array
         "SELECT
             COUNT(*) AS total_rooms,
             SUM(CASE WHEN r.is_archived = 1 OR r.availability_status = 'archived' THEN 1 ELSE 0 END) AS archived_rooms,
-            SUM(CASE WHEN (r.is_archived = 0 OR r.is_archived IS NULL) AND r.availability_status = 'occupied' THEN 1 ELSE 0 END) AS occupied_rooms,
-            SUM(CASE WHEN (r.is_archived = 0 OR r.is_archived IS NULL) AND r.availability_status = 'available' THEN 1 ELSE 0 END) AS available_rooms
+            SUM(CASE WHEN (r.is_archived = 0 OR r.is_archived IS NULL)
+                AND (SELECT COUNT(*) FROM reservations approved_reservations WHERE approved_reservations.room_id = r.room_id AND approved_reservations.status = 'approved') >= r.capacity
+                THEN 1 ELSE 0 END) AS occupied_rooms,
+            SUM(CASE WHEN (r.is_archived = 0 OR r.is_archived IS NULL)
+                AND r.availability_status <> 'unavailable'
+                AND (SELECT COUNT(*) FROM reservations approved_reservations WHERE approved_reservations.room_id = r.room_id AND approved_reservations.status = 'approved') < r.capacity
+                THEN 1 ELSE 0 END) AS available_rooms
          FROM rooms r
          INNER JOIN boarding_house b ON b.boarding_house_id = r.boarding_house_id{$where}"
     );

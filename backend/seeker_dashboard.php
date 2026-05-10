@@ -5,6 +5,7 @@ require_once __DIR__ . '/helpers.php';
 
 require_methods(['GET']);
 ensure_seeker_feature_schema();
+ensure_owner_feature_schema();
 
 $action = request_action();
 
@@ -73,12 +74,14 @@ function find_seeker_reservation(int $userId, array $statuses): ?array
             r.capacity,
             r.monthly_rate,
             r.amenities,
+            r.photos,
             r.availability_status,
             b.boarding_house_id,
             b.house_name,
             b.address,
             b.description,
             b.house_rules,
+            b.cover_photo,
             owner.full_name AS landlord_name,
             owner.contact_number AS landlord_contact_number
          FROM reservations rv
@@ -167,6 +170,9 @@ function normalize_seeker_room(array $row): array
 {
     $amenitiesRaw = trim((string)($row['amenities'] ?? ''));
     $rulesRaw = trim((string)($row['house_rules'] ?? ''));
+    $photos = decode_json_array($row['photos'] ?? null);
+    $photoUrls = array_map('backend_asset_url', $photos);
+    $coverPhoto = trim((string)($row['cover_photo'] ?? ''));
 
     return [
         'reservation' => normalize_seeker_reservation($row),
@@ -178,13 +184,15 @@ function normalize_seeker_room(array $row): array
             'monthly_rate' => isset($row['monthly_rate']) ? (float)$row['monthly_rate'] : 0,
             'availability_status' => $row['availability_status'] ?? null,
             'amenities' => $amenitiesRaw === '' ? [] : array_values(array_filter(array_map('trim', explode(',', $amenitiesRaw)))),
-            'photo_url' => null,
+            'photo_urls' => $photoUrls,
+            'photo_url' => $photoUrls[0] ?? ($coverPhoto !== '' ? backend_asset_url($coverPhoto) : null),
         ],
         'boarding_house' => [
             'boarding_house_id' => isset($row['boarding_house_id']) ? (int)$row['boarding_house_id'] : null,
             'house_name' => $row['house_name'] ?? null,
             'address' => $row['address'] ?? null,
             'description' => $row['description'] ?? null,
+            'cover_photo_url' => $coverPhoto !== '' ? backend_asset_url($coverPhoto) : null,
             'house_rules' => $rulesRaw === ''
                 ? []
                 : array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n|\./', $rulesRaw) ?: []))),

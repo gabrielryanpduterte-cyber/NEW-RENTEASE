@@ -17,7 +17,13 @@ export default function RoomCard({ room, cta = 'Reserve Now', detailTo, onReserv
   return (
     <article className="re-room-card">
       <Link className="re-room-media" to={detailTo || `/rooms/${room.id}`}>
-        <img src={room.photo} alt={`${room.name} room`} loading="lazy" />
+        {room.photo ? (
+          <img src={room.photo} alt={`${room.name} room`} loading="lazy" />
+        ) : (
+          <div className="re-room-media-placeholder">
+            <BedDouble size={36} />
+          </div>
+        )}
         <span className="re-room-type">{room.type}</span>
         <StatusPill variant={status} />
       </Link>
@@ -34,7 +40,11 @@ export default function RoomCard({ room, cta = 'Reserve Now', detailTo, onReserv
         <div className="re-room-meta" aria-label="Room capacity and amenities">
           <span>
             <BedDouble size={16} />
-            {room.capacity} {room.capacity > 1 ? 'beds' : 'bed'}
+            {room.occupiedCount || 0}/{room.capacity} occupied
+          </span>
+          <span>
+            <BedDouble size={16} />
+            {room.remainingCapacity ?? room.capacity} slot(s) left
           </span>
           {room.amenities.slice(0, 3).map((amenity) => (
             <span key={amenity}>

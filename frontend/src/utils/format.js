@@ -70,7 +70,7 @@ export function statusClassName(value) {
     return 'pill-success';
   }
 
-  if (status === 'pending' || status === 'unpaid' || status === 'inactive' || status === 'occupied') {
+  if (status === 'pending' || status === 'pending_verification' || status === 'unpaid' || status === 'inactive' || status === 'occupied') {
     return 'pill-warning';
   }
 

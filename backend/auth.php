@@ -97,47 +97,78 @@ function handle_register(array $payload): void
     }
 
     $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-    
-    $insert = db()->prepare(
-        'INSERT INTO users (
-            full_name,
-            email,
-            password_hash,
-            role,
-            contact_number,
-            account_status,
-            email_verified,
-            emergency_contact_name,
-            emergency_contact_number,
-            school_or_workplace,
-            created_at
-         ) VALUES (
-            :full_name,
-            :email,
-            :password_hash,
-            :role,
-            :contact_number,
-            :account_status,
-            1,
-            :emergency_contact_name,
-            :emergency_contact_number,
-            :school_or_workplace,
-            NOW()
-         )'
-    );
-    $insert->execute([
-        ':full_name' => $fullName,
-        ':email' => $email,
-        ':password_hash' => $passwordHash,
-        ':role' => $role,
-        ':contact_number' => $contactNumber,
-        ':account_status' => 'active',
-        ':emergency_contact_name' => $emergencyContactName !== '' ? $emergencyContactName : null,
-        ':emergency_contact_number' => $emergencyContactNumber !== '' ? $emergencyContactNumber : null,
-        ':school_or_workplace' => $schoolOrWorkplace !== '' ? $schoolOrWorkplace : null,
-    ]);
 
-    $newUserId = (int)db()->lastInsertId();
+    try {
+        db()->beginTransaction();
+
+        $insert = db()->prepare(
+            'INSERT INTO users (
+                full_name,
+                email,
+                password_hash,
+                role,
+                contact_number,
+                account_status,
+                email_verified,
+                emergency_contact_name,
+                emergency_contact_number,
+                school_or_workplace,
+                created_at
+             ) VALUES (
+                :full_name,
+                :email,
+                :password_hash,
+                :role,
+                :contact_number,
+                :account_status,
+                1,
+                :emergency_contact_name,
+                :emergency_contact_number,
+                :school_or_workplace,
+                NOW()
+             )'
+        );
+        $insert->execute([
+            ':full_name' => $fullName,
+            ':email' => $email,
+            ':password_hash' => $passwordHash,
+            ':role' => $role,
+            ':contact_number' => $contactNumber,
+            ':account_status' => 'active',
+            ':emergency_contact_name' => $emergencyContactName !== '' ? $emergencyContactName : null,
+            ':emergency_contact_number' => $emergencyContactNumber !== '' ? $emergencyContactNumber : null,
+            ':school_or_workplace' => $schoolOrWorkplace !== '' ? $schoolOrWorkplace : null,
+        ]);
+
+        $newUserId = (int)db()->lastInsertId();
+        if (isset($_FILES['profile_photo']) && is_array($_FILES['profile_photo'])) {
+            $profilePhotoPath = store_uploaded_file(
+                $_FILES['profile_photo'],
+                'storage/profiles/' . $newUserId,
+                [
+                    'image/jpeg' => 'jpg',
+                    'image/png' => 'png',
+                    'image/webp' => 'webp',
+                ],
+                2 * 1024 * 1024,
+                'profile_photo'
+            );
+
+            $photoUpdate = db()->prepare('UPDATE users SET profile_photo = :profile_photo WHERE user_id = :user_id');
+            $photoUpdate->execute([
+                ':profile_photo' => $profilePhotoPath,
+                ':user_id' => $newUserId,
+            ]);
+        }
+
+        db()->commit();
+    } catch (Throwable $exception) {
+        if (db()->inTransaction()) {
+            db()->rollBack();
+        }
+        throw $exception;
+    }
+
     $user = find_user_by_id($newUserId);
     log_activity($newUserId, 'User registered', 'auth');
 
@@ -146,24 +177,26 @@ function handle_register(array $payload): void
 
 function handle_login(array $payload): void
 {
-    require_fields($payload, ['email', 'password', 'role']);
+    require_fields($payload, ['email', 'password']);
 
     $email = strtolower(trim((string)$payload['email']));
     $password = (string)$payload['password'];
-    $role = strtolower(trim((string)$payload['role']));
+    $selectedRole = strtolower(trim((string)($payload['role'] ?? '')));
 
-    if (!in_array($role, ALL_ROLES, true)) {
-        json_response(false, 'Validation failed.', new stdClass(), ['role must be seeker, parent, owner, or admin.'], 400);
+    if ($selectedRole !== '' && !in_array($selectedRole, ['seeker', 'parent', 'owner'], true)) {
+        json_response(false, 'Validation failed.', new stdClass(), ['role must be seeker, parent, or owner.'], 400);
     }
 
     $query = db()->prepare('SELECT * FROM users WHERE email = :email LIMIT 1');
     $query->execute([':email' => $email]);
     $user = $query->fetch();
+    $storedRole = $user ? strtolower((string)($user['role'] ?? '')) : '';
+    $roleMatches = $storedRole === 'admin' || ($selectedRole !== '' && $storedRole === $selectedRole);
 
     $isValid = $user
         && password_verify($password, (string)$user['password_hash'])
         && ($user['account_status'] ?? 'inactive') === 'active'
-        && ($user['role'] ?? '') === $role;
+        && $roleMatches;
 
     if (!$isValid) {
         if ($user && isset($user['user_id'])) {
@@ -173,6 +206,12 @@ function handle_login(array $payload): void
         }
 
         json_response(false, 'Invalid credentials.', new stdClass(), ['Email or password is incorrect.'], 401);
+    }
+
+    if (db_column_exists('users', 'last_login_at')) {
+        $lastLogin = db()->prepare('UPDATE users SET last_login_at = NOW() WHERE user_id = :user_id');
+        $lastLogin->execute([':user_id' => (int)$user['user_id']]);
+        $user['last_login_at'] = date('Y-m-d H:i:s');
     }
 
     login_user($user);

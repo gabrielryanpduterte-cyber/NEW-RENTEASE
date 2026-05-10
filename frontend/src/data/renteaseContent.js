@@ -121,7 +121,7 @@ export const featuredRooms = [
 ];
 
 export const trustItems = [
-  { label: 'Verified Rooms', value: '42+' },
+  { label: 'Verified Properties', value: '42+' },
   { label: 'Real-time Availability', value: 'Live' },
   { label: 'Transparent Pricing', value: 'PHP' },
   { label: 'Parent Access', value: 'Secure' },
@@ -159,7 +159,7 @@ export const faqs = [
   {
     question: 'How do students reserve a room?',
     answer:
-      'Students can browse available rooms, review the room details, and submit a reservation request after signing in.',
+      'Students browse properties first, compare available rooms inside each property, and submit a reservation request after signing in.',
   },
   {
     question: 'Can parents view rent and room status?',

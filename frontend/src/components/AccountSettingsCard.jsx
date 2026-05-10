@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { authApi, describeApiError } from '../api/client.js';
 import { useAuth } from '../auth/useAuth.js';
 import ModuleCard from './ModuleCard.jsx';
+import PasswordInput from './PasswordInput.jsx';
 
 function AccountSettingsCard({
   id = 'account',
@@ -189,8 +190,7 @@ function AccountSettingsCard({
       )}
 
       <form className="inline-form account-password-form" onSubmit={submitPassword}>
-        <input
-          type="password"
+        <PasswordInput
           placeholder="Current password"
           value={passwordForm.current_password}
           onChange={(event) =>
@@ -202,8 +202,7 @@ function AccountSettingsCard({
           autoComplete="current-password"
           required
         />
-        <input
-          type="password"
+        <PasswordInput
           placeholder="New password"
           value={passwordForm.new_password}
           onChange={(event) =>
@@ -216,8 +215,7 @@ function AccountSettingsCard({
           autoComplete="new-password"
           required
         />
-        <input
-          type="password"
+        <PasswordInput
           placeholder="Confirm new password"
           value={passwordForm.confirm_password}
           onChange={(event) =>

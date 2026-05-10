@@ -4,13 +4,13 @@ import { CheckCircle2, Home, LockKeyhole, Mail } from 'lucide-react';
 import { useAuth } from '../auth/useAuth.js';
 import { roleDashboardPath } from '../utils/roles.js';
 import GoogleSignInButton from '../components/GoogleSignInButton.jsx';
+import PasswordInput from '../components/PasswordInput.jsx';
 import { authImage } from '../data/renteaseContent.js';
 
 const loginRoles = [
   { value: 'seeker', label: 'Seeker' },
   { value: 'parent', label: 'Parent' },
   { value: 'owner', label: 'Landlord' },
-  { value: 'admin', label: 'Admin' },
 ];
 
 function LoginPage() {
@@ -71,18 +71,18 @@ function LoginPage() {
           </Link>
           <h1>Boarding house access for every role.</h1>
           <p>
-            Students, guardians, landlords, and admins sign in to the same trusted platform
-            with role-aware dashboards.
+            Students, guardians, and landlords sign in to the same trusted platform with
+            role-aware dashboards.
           </p>
           <ul>
             <li>
-              <CheckCircle2 size={18} /> Verified rooms and reservation tracking
+              <CheckCircle2 size={18} /> Verified properties and reservation tracking
             </li>
             <li>
               <CheckCircle2 size={18} /> Payment status and guardian visibility
             </li>
             <li>
-              <CheckCircle2 size={18} /> Landlord and admin controls
+              <CheckCircle2 size={18} /> Landlord room and payment controls
             </li>
           </ul>
         </div>
@@ -90,7 +90,9 @@ function LoginPage() {
 
       <section className="re-auth-panel">
         <div className="re-auth-card">
-          <p className="re-eyebrow">Welcome back</p>
+          <div className="theme-auth-row">
+            <p className="re-eyebrow">Welcome back</p>
+          </div>
           <h2>Sign in</h2>
           <p>Select the role that matches your account.</p>
 
@@ -133,19 +135,17 @@ function LoginPage() {
 
             <label>
               <span>Password</span>
-              <div className="re-input-with-icon">
-                <LockKeyhole size={17} />
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  value={form.password}
-                  onChange={(event) =>
-                    setForm((current) => ({ ...current, password: event.target.value }))
-                  }
-                  placeholder="Enter your password"
-                  required
-                />
-              </div>
+              <PasswordInput
+                className="re-input-with-icon"
+                leadingIcon={<LockKeyhole size={17} />}
+                autoComplete="current-password"
+                value={form.password}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, password: event.target.value }))
+                }
+                placeholder="Enter your password"
+                required
+              />
             </label>
 
             <div className="re-auth-options">

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BedDouble, Building2, Home, MapPin, Phone, Users, Wifi } from 'lucide-react';
+import { BedDouble, Building2, CreditCard, Home, MapPin, Phone, Users, Wifi } from 'lucide-react';
 import { seekerDashboardApi } from '../../api/client.js';
 import AppShell from '../../components/AppShell.jsx';
 import { EmptyState, LoadingSkeleton } from '../../components/seeker/SeekerShared.jsx';
@@ -40,6 +40,7 @@ export default function MyRoomPage() {
   const reservation = state.data?.reservation;
   const boardingHouse = state.data?.boarding_house;
   const landlord = state.data?.landlord;
+  const roomImage = room?.photo_url || boardingHouse?.cover_photo_url || '';
 
   return (
     <AppShell title="My Room" subtitle="Read-only details for your approved room assignment.">
@@ -53,7 +54,7 @@ export default function MyRoomPage() {
             icon={Building2}
             title="You do not have an assigned room yet."
             description="Once your reservation is approved by the landlord, your room details will appear here."
-            cta={<Link className="button-primary" to="/rooms">Browse Rooms</Link>}
+            cta={<Link className="button-primary" to="/seeker/properties">Browse Properties</Link>}
           />
         ) : (
           <>
@@ -65,7 +66,11 @@ export default function MyRoomPage() {
 
             <article className="seeker-room-detail">
               <div className="seeker-room-photo">
-                <Building2 size={42} />
+                {roomImage ? (
+                  <img src={roomImage} alt={`Room ${room.room_number}`} />
+                ) : (
+                  <Building2 size={42} />
+                )}
               </div>
 
               <div className="seeker-detail-title">
@@ -74,7 +79,13 @@ export default function MyRoomPage() {
                   <h1>{room.room_type}</h1>
                   <p>Move-in: {formatDate(reservation?.move_in_date)}</p>
                 </div>
-                <strong>{formatCurrency(room.monthly_rate)} / month</strong>
+                <div className="seeker-room-title-actions">
+                  <strong>{formatCurrency(room.monthly_rate)} / month</strong>
+                  <Link className="button-primary" to="/dashboard/rent">
+                    <CreditCard size={16} />
+                    Pay Rent
+                  </Link>
+                </div>
               </div>
 
               <section className="seeker-detail-section">

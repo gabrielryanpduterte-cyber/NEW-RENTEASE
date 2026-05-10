@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth.js';
 import { roleDashboardPath } from '../utils/roles.js';
+import PasswordInput from '../components/PasswordInput.jsx';
 
 function CompleteProfilePage() {
   const navigate = useNavigate();
@@ -144,6 +145,9 @@ function CompleteProfilePage() {
     <div className="complete-profile-page">
       <div className="complete-profile-container">
         <div className="complete-profile-card">
+          <div className="theme-auth-row">
+            <span className="re-eyebrow">Google profile</span>
+          </div>
           <h1>Complete Your Profile</h1>
           <p className="subtitle">Just one more step to get started with RentEase</p>
 
@@ -193,9 +197,8 @@ function CompleteProfilePage() {
             />
 
             <label htmlFor="password">Password:</label>
-            <input
+            <PasswordInput
               id="password"
-              type="password"
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               placeholder="At least 8 characters"
@@ -209,9 +212,8 @@ function CompleteProfilePage() {
             )}
 
             <label htmlFor="confirm_password">Confirm Password:</label>
-            <input
+            <PasswordInput
               id="confirm_password"
-              type="password"
               value={form.confirm_password}
               onChange={(e) => setForm({ ...form, confirm_password: e.target.value })}
               placeholder="Re-enter your password"

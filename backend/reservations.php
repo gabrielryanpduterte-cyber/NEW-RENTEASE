@@ -195,18 +195,28 @@ function handle_reservations_create(array $actor, array $payload): void
     }
 
     $roomQuery = db()->prepare(
-        'SELECT r.room_id, r.room_number, r.availability_status
+        "SELECT r.room_id, r.room_number, r.availability_status, r.capacity, r.is_archived,
+                (SELECT COUNT(*)
+                 FROM reservations approved_reservations
+                 WHERE approved_reservations.room_id = r.room_id
+                   AND approved_reservations.status = 'approved') AS approved_tenant_count
          FROM rooms r
          WHERE r.room_id = :room_id
-         LIMIT 1'
+         LIMIT 1"
     );
     $roomQuery->execute([':room_id' => $roomId]);
     $room = $roomQuery->fetch();
     if (!$room) {
         json_response(false, 'Validation failed.', new stdClass(), ['room_id does not exist.'], 400);
     }
-    if (($room['availability_status'] ?? '') === 'occupied') {
+    $roomAvailability = strtolower((string)($room['availability_status'] ?? ''));
+    $approvedTenantCount = (int)($room['approved_tenant_count'] ?? 0);
+    $roomCapacity = (int)($room['capacity'] ?? 1);
+    if (in_array($roomAvailability, ['unavailable', 'archived'], true) || (int)($room['is_archived'] ?? 0) === 1) {
         json_response(false, 'Validation failed.', new stdClass(), ['Selected room is not available for reservation.'], 400);
+    }
+    if ($approvedTenantCount >= $roomCapacity) {
+        json_response(false, 'Validation failed.', new stdClass(), ['Selected room is already full.'], 400);
     }
 
     if ($actor['role'] === 'seeker') {
@@ -219,7 +229,7 @@ function handle_reservations_create(array $actor, array $payload): void
         );
         $activeReservationQuery->execute([':user_id' => $userId]);
         if ($activeReservationQuery->fetch()) {
-            json_response(false, 'Validation failed.', new stdClass(), ['You already have an active or pending reservation.'], 400);
+            json_response(false, 'Validation failed.', new stdClass(), ['You already have an active or pending long-term room reservation. Cancel or finish it before requesting another property.'], 400);
         }
     }
 
@@ -496,9 +506,14 @@ function handle_reservations_approve(array $actor, array $payload): void
     if (strtolower((string)$reservation['status']) !== 'pending') {
         json_response(false, 'Reservation cannot be approved.', new stdClass(), ['Only pending reservations can be approved.'], 400);
     }
-    if (in_array(strtolower((string)$reservation['availability_status']), ['occupied', 'archived'], true)
+    $approvedTenantCount = (int)($reservation['approved_tenant_count'] ?? 0);
+    $roomCapacity = (int)($reservation['capacity'] ?? 1);
+    if (in_array(strtolower((string)$reservation['availability_status']), ['unavailable', 'archived'], true)
         || (int)($reservation['is_archived'] ?? 0) === 1) {
         json_response(false, 'Room is not available.', new stdClass(), ['Room must be available before approval.'], 400);
+    }
+    if ($approvedTenantCount >= $roomCapacity) {
+        json_response(false, 'Room is full.', new stdClass(), ['This room already reached its tenant capacity.'], 400);
     }
 
     $billingMonth = substr((string)$reservation['move_in_date'], 0, 7);
@@ -513,13 +528,17 @@ function handle_reservations_approve(array $actor, array $payload): void
         );
         $updateReservation->execute([':reservation_id' => $reservationId]);
 
+        $nextStatus = ($approvedTenantCount + 1) >= $roomCapacity ? 'occupied' : 'available';
         $updateRoom = db()->prepare(
-            "UPDATE rooms
-             SET availability_status = 'occupied',
+            'UPDATE rooms
+             SET availability_status = :availability_status,
                  is_archived = 0
-             WHERE room_id = :room_id"
+             WHERE room_id = :room_id'
         );
-        $updateRoom->execute([':room_id' => (int)$reservation['room_id']]);
+        $updateRoom->execute([
+            ':availability_status' => $nextStatus,
+            ':room_id' => (int)$reservation['room_id'],
+        ]);
 
         $cycleQuery = db()->prepare(
             'SELECT billing_cycle_id
@@ -619,8 +638,12 @@ function handle_reservations_reject(array $actor, array $payload): void
 function find_reservation_for_owner_action(int $reservationId): ?array
 {
     $query = db()->prepare(
-        'SELECT rv.*, r.room_number, r.room_type, r.monthly_rate, r.capacity,
+        "SELECT rv.*, r.room_number, r.room_type, r.monthly_rate, r.capacity,
                 r.availability_status, r.is_archived,
+                (SELECT COUNT(*)
+                 FROM reservations approved_reservations
+                 WHERE approved_reservations.room_id = r.room_id
+                   AND approved_reservations.status = 'approved') AS approved_tenant_count,
                 b.boarding_house_id, b.house_name, b.owner_id,
                 u.full_name AS user_name, u.email AS user_email,
                 u.contact_number AS user_contact_number,
@@ -631,7 +654,7 @@ function find_reservation_for_owner_action(int $reservationId): ?array
          INNER JOIN boarding_house b ON b.boarding_house_id = r.boarding_house_id
          INNER JOIN users u ON u.user_id = rv.user_id
          WHERE rv.reservation_id = :reservation_id
-         LIMIT 1'
+         LIMIT 1"
     );
     $query->execute([':reservation_id' => $reservationId]);
     $row = $query->fetch();

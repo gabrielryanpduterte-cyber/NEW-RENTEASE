@@ -15,7 +15,7 @@ export default function ForgotPasswordPage() {
             RentEase
           </Link>
           <h1>Reset access to your boarding house account.</h1>
-          <p>Enter your email and follow the recovery instructions shown by your administrator.</p>
+          <p>Enter your email and follow the recovery instructions from RentEase support.</p>
         </div>
       </section>
 
@@ -31,7 +31,7 @@ export default function ForgotPasswordPage() {
               <div>
                 <h3>Recovery request received</h3>
                 <p>
-                  If this email exists in RentEase, check with your administrator or landlord
+                  If this email exists in RentEase, check with your landlord or RentEase support
                   for the next reset step.
                 </p>
               </div>

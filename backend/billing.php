@@ -83,6 +83,7 @@ function handle_billing_index(array $actor): void
             'payment_status' => 'no_record',
             'payment_method' => null,
             'payment_date' => null,
+            'notes' => null,
             'proof_uploaded' => false,
             'proof_url' => null,
         ];
@@ -91,6 +92,7 @@ function handle_billing_index(array $actor): void
     $summary = [
         'paid_count' => 0,
         'unpaid_count' => 0,
+        'pending_count' => 0,
         'no_record_count' => 0,
         'total_billed' => 0.0,
         'total_collected' => 0.0,
@@ -100,13 +102,17 @@ function handle_billing_index(array $actor): void
         $status = strtolower((string)$row['payment_status']);
         if ($status === 'paid') {
             $summary['paid_count']++;
+        } elseif ($status === 'pending_verification') {
+            $summary['pending_count']++;
         } elseif ($status === 'no_record') {
             $summary['no_record_count']++;
         } else {
             $summary['unpaid_count']++;
         }
         $summary['total_billed'] += (float)$row['amount_due'];
-        $summary['total_collected'] += (float)$row['amount_paid'];
+        if ($status === 'paid') {
+            $summary['total_collected'] += (float)$row['amount_paid'];
+        }
     }
 
     json_response(
@@ -250,8 +256,8 @@ function handle_billing_mark_paid(array $actor, array $payload): void
     if (!is_valid_billing_payment_date($paymentDate)) {
         $errors[] = 'payment_date must use YYYY-MM-DD format.';
     }
-    if (strlen($notes) > 300) {
-        $errors[] = 'notes cannot exceed 300 characters.';
+    if (strlen($notes) > 1000) {
+        $errors[] = 'notes cannot exceed 1000 characters.';
     }
     if (!empty($errors)) {
         json_response(false, 'Validation failed.', new stdClass(), $errors, 400);

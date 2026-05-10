@@ -17,6 +17,7 @@ import GuardianAccessPage from './pages/seeker/GuardianAccessPage.jsx';
 import DocumentsPage from './pages/seeker/DocumentsPage.jsx';
 import FeedbackPage from './pages/seeker/FeedbackPage.jsx';
 import ProfilePage from './pages/seeker/ProfilePage.jsx';
+import BrowsePropertiesPage from './pages/seeker/BrowsePropertiesPage.jsx';
 import BoardingHouseProfilePage from './pages/owner/BoardingHouseProfilePage.jsx';
 import ManageRoomsPage from './pages/owner/ManageRoomsPage.jsx';
 import ReservationRequestsPage from './pages/owner/ReservationRequestsPage.jsx';
@@ -60,6 +61,7 @@ function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/properties" element={<PublicRoomsPage />} />
       <Route path="/rooms" element={<PublicRoomsPage />} />
       <Route path="/rooms/:roomId" element={<RoomDetailPage />} />
       <Route path="/guardian-view/:token" element={<GuardianViewPage />} />
@@ -72,6 +74,14 @@ function App() {
         element={
           <ProtectedRoute allowedRoles={['seeker']}>
             <SeekerDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/seeker/properties"
+        element={
+          <ProtectedRoute allowedRoles={['seeker']}>
+            <BrowsePropertiesPage />
           </ProtectedRoute>
         }
       />
@@ -132,7 +142,6 @@ function App() {
         }
       />
       <Route path="/seeker/dashboard" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/seeker/properties" element={<Navigate to="/dashboard/room" replace />} />
       <Route path="/seeker/bookings" element={<Navigate to="/dashboard/reservations" replace />} />
       <Route path="/seeker/payments" element={<Navigate to="/dashboard/rent" replace />} />
       <Route path="/seeker/account" element={<Navigate to="/dashboard/profile" replace />} />

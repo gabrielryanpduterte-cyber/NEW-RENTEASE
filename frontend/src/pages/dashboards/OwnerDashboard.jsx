@@ -5,7 +5,7 @@ import { ownerDashboardApi } from '../../api/client.js';
 import AppShell from '../../components/AppShell.jsx';
 import AsyncState from '../../components/AsyncState.jsx';
 import ModuleCard from '../../components/ModuleCard.jsx';
-import { formatCurrency, formatDateTime } from '../../utils/format.js';
+import { formatCurrency } from '../../utils/format.js';
 
 function OwnerDashboard() {
   const navigate = useNavigate();
@@ -178,35 +178,6 @@ function OwnerDashboard() {
               <strong>{dashboard.archived_rooms || 0}</strong>
               <span>Archived</span>
             </div>
-          </div>
-        </AsyncState>
-      </ModuleCard>
-
-      <ModuleCard
-        id="owner-activity"
-        title="Recent Activity"
-        description="Latest owner-side actions recorded by the backend."
-      >
-        <AsyncState
-          loading={state.loading}
-          error={state.error}
-          isEmpty={!state.data}
-          loadingText="Loading activity..."
-          emptyText="No recent activity yet."
-          onRetry={loadDashboard}
-        >
-          <div className="activity-feed">
-            {(dashboard.recent_activity || []).map((activity) => (
-              <div className="activity-item" key={activity.log_id}>
-                <strong>{activity.action_performed}</strong>
-                <span>{activity.affected_module} · {formatDateTime(activity.timestamp)}</span>
-              </div>
-            ))}
-            {(dashboard.recent_activity || []).length === 0 && (
-              <div className="state-card state-empty">
-                <p>No recent activity yet.</p>
-              </div>
-            )}
           </div>
         </AsyncState>
       </ModuleCard>

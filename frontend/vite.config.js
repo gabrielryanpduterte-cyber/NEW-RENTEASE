@@ -36,7 +36,7 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 1600,
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom'],

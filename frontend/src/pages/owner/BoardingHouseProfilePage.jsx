@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Camera, Link as LinkIcon, Plus } from 'lucide-react';
+import { Camera, Link as LinkIcon, Plus, X } from 'lucide-react';
 import { boardingHouseApi } from '../../api/client.js';
 import AppShell from '../../components/AppShell.jsx';
 import AsyncState from '../../components/AsyncState.jsx';
 import ModuleCard from '../../components/ModuleCard.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
+import { IMAGE_UPLOAD_ACCEPT, prepareUploadFile } from '../../utils/imageUpload.js';
+import { PROPERTY_TYPE_OPTIONS } from '../../utils/propertyBrowse.js';
 
 const AMENITY_OPTIONS = [
   'WiFi',
@@ -19,6 +21,7 @@ const AMENITY_OPTIONS = [
 
 const EMPTY_FORM = {
   house_name: '',
+  property_type: 'boarding_house',
   address: '',
   contact_number: '',
   facebook_page: '',
@@ -34,6 +37,7 @@ function normalizeHouse(house) {
 
   return {
     house_name: house.house_name || '',
+    property_type: house.property_type || 'boarding_house',
     address: house.address || '',
     contact_number: house.contact_number || '',
     facebook_page: house.facebook_page || '',
@@ -54,7 +58,25 @@ export default function BoardingHouseProfilePage() {
   const [customAmenity, setCustomAmenity] = useState('');
   const [coverFile, setCoverFile] = useState(null);
   const [coverPreview, setCoverPreview] = useState('');
+  const [coverStatus, setCoverStatus] = useState('');
+  const [preparingCover, setPreparingCover] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const convertedCoverPreview = useMemo(() => {
+    if (!coverFile) {
+      return '';
+    }
+
+    return URL.createObjectURL(coverFile);
+  }, [coverFile]);
+
+  useEffect(() => {
+    return () => {
+      if (convertedCoverPreview) {
+        URL.revokeObjectURL(convertedCoverPreview);
+      }
+    };
+  }, [convertedCoverPreview]);
 
   async function loadHouse() {
     setState((current) => ({ ...current, loading: true, error: null }));
@@ -65,6 +87,7 @@ export default function BoardingHouseProfilePage() {
       setState({ loading: false, error: null, house });
       setFormData(normalizeHouse(house));
       setCoverPreview(house?.cover_photo_url || '');
+      setCoverFile(null);
     } catch (error) {
       setState({ loading: false, error, house: null });
     }
@@ -109,12 +132,38 @@ export default function BoardingHouseProfilePage() {
     setCustomAmenity('');
   }
 
-  function onCoverChange(event) {
+  async function onCoverChange(event) {
     const file = event.target.files?.[0] || null;
-    setCoverFile(file);
-    if (file) {
-      setCoverPreview(URL.createObjectURL(file));
+    setCoverStatus('');
+
+    if (!file) {
+      setCoverFile(null);
+      return;
     }
+
+    setPreparingCover(true);
+    try {
+      const prepared = await prepareUploadFile(file, {
+        maxSizeMB: 3,
+        maxWidth: 1800,
+        maxHeight: 1200,
+        allowPdf: false,
+      });
+      setCoverFile(prepared.file);
+      setCoverStatus(prepared.message || 'Cover photo ready.');
+      event.target.value = '';
+    } catch (error) {
+      setCoverFile(null);
+      setCoverStatus(error?.message || 'Unable to prepare cover photo.');
+      event.target.value = '';
+    } finally {
+      setPreparingCover(false);
+    }
+  }
+
+  function clearSelectedCover() {
+    setCoverFile(null);
+    setCoverStatus('');
   }
 
   async function saveProfile(event) {
@@ -141,6 +190,7 @@ export default function BoardingHouseProfilePage() {
       }
       showToast('Boarding house profile saved.', 'success');
       setCoverFile(null);
+      setCoverStatus('');
       await loadHouse();
     } catch (error) {
       showToast(error?.errors?.[0] || error?.message || 'Unable to save profile.', 'error');
@@ -151,8 +201,8 @@ export default function BoardingHouseProfilePage() {
 
   return (
     <AppShell
-      title="Boarding House Profile"
-      subtitle="Public listing details, contact information, house rules, and seeker-facing amenities."
+      title="Property Profile"
+      subtitle="Public listing details, property type, contact information, rules, and seeker-facing amenities."
     >
       <ModuleCard
         id="boarding-house-form"
@@ -179,6 +229,23 @@ export default function BoardingHouseProfilePage() {
                     required
                   />
                 </div>
+                <div className="form-group">
+                  <label htmlFor="property-type">Property type</label>
+                  <select
+                    id="property-type"
+                    value={formData.property_type}
+                    onChange={(event) => updateField('property_type', event.target.value)}
+                  >
+                    {PROPERTY_TYPE_OPTIONS.filter((option) => option.value).map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="contact-number">Contact number</label>
                   <input
@@ -231,9 +298,16 @@ export default function BoardingHouseProfilePage() {
                 <label>Cover photo</label>
                 <label className="owner-upload-control">
                   <Camera size={18} />
-                  <span>{coverFile ? coverFile.name : 'Change cover photo'}</span>
-                  <input type="file" accept="image/*" onChange={onCoverChange} />
+                  <span>{preparingCover ? 'Converting cover photo...' : coverFile ? coverFile.name : 'Change cover photo'}</span>
+                  <input type="file" accept={IMAGE_UPLOAD_ACCEPT} onChange={onCoverChange} disabled={preparingCover} />
                 </label>
+                {coverFile && (
+                  <button type="button" className="re-file-remove" onClick={clearSelectedCover}>
+                    <X size={15} />
+                    Remove selected cover
+                  </button>
+                )}
+                {coverStatus && <small className="re-upload-note">{coverStatus}</small>}
               </div>
 
               <div className="form-group">
@@ -282,8 +356,13 @@ export default function BoardingHouseProfilePage() {
 
             <aside className="owner-preview-panel">
               <div className="owner-cover-preview">
-                {coverPreview ? (
-                  <img src={coverPreview} alt="" />
+                {coverFile && (
+                  <button type="button" className="re-preview-remove" onClick={clearSelectedCover} aria-label="Remove selected cover photo">
+                    <X size={14} />
+                  </button>
+                )}
+                {convertedCoverPreview || coverPreview ? (
+                  <img src={convertedCoverPreview || coverPreview} alt="" />
                 ) : (
                   <span>No cover photo</span>
                 )}

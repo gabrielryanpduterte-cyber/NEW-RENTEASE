@@ -1,29 +1,77 @@
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { IMAGE_UPLOAD_ACCEPT, prepareUploadFiles } from '../../utils/imageUpload.js';
 
 export function ImageUpload({ onImagesChange, maxImages = 10 }) {
   const [images, setImages] = useState([]);
   const [previews, setPreviews] = useState([]);
+  const [message, setMessage] = useState('');
+  const [processing, setProcessing] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
+  const previewUrlsRef = useRef([]);
 
-  const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files);
-    
-    if (images.length + files.length > maxImages) {
-      alert(`Maximum ${maxImages} images allowed`);
+  useEffect(() => {
+    return () => {
+      previewUrlsRef.current.forEach((preview) => URL.revokeObjectURL(preview));
+    };
+  }, []);
+
+  const prepareFiles = async (files, inputElement = null) => {
+    if (files.length === 0) {
       return;
     }
 
-    const newImages = [...images, ...files];
-    setImages(newImages);
-
-    // Generate previews
-    const newPreviews = files.map(file => URL.createObjectURL(file));
-    setPreviews(prev => [...prev, ...newPreviews]);
-
-    if (onImagesChange) {
-      onImagesChange(newImages);
+    if (images.length + files.length > maxImages) {
+      alert(`Maximum ${maxImages} images allowed`);
+      if (inputElement) {
+        inputElement.value = '';
+      }
+      return;
     }
+
+    setMessage('');
+    setProcessing(true);
+    try {
+      const prepared = await prepareUploadFiles(files, {
+        maxSizeMB: 2,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        allowPdf: false,
+      });
+
+      const newImages = [...images, ...prepared.files];
+      setImages(newImages);
+
+      const newPreviews = prepared.files.map(file => URL.createObjectURL(file));
+      previewUrlsRef.current.push(...newPreviews);
+      setPreviews(prev => [...prev, ...newPreviews]);
+      setMessage(prepared.messages.length > 0 ? 'Photos converted to JPG for upload.' : `${prepared.files.length} photo(s) ready.`);
+
+      if (onImagesChange) {
+        onImagesChange(newImages);
+      }
+      if (inputElement) {
+        inputElement.value = '';
+      }
+    } catch (error) {
+      setMessage(error?.message || 'Unable to prepare selected images.');
+      if (inputElement) {
+        inputElement.value = '';
+      }
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleFileSelect = async (event) => {
+    await prepareFiles(Array.from(event.target.files || []), event.target);
+  };
+
+  const handleDrop = async (event) => {
+    event.preventDefault();
+    setIsDragging(false);
+    await prepareFiles(Array.from(event.dataTransfer.files || []));
   };
 
   const handleRemove = (index) => {
@@ -32,6 +80,7 @@ export function ImageUpload({ onImagesChange, maxImages = 10 }) {
     
     // Revoke object URL to prevent memory leaks
     URL.revokeObjectURL(previews[index]);
+    previewUrlsRef.current = previewUrlsRef.current.filter((preview) => preview !== previews[index]);
     
     setImages(newImages);
     setPreviews(newPreviews);
@@ -50,13 +99,22 @@ export function ImageUpload({ onImagesChange, maxImages = 10 }) {
         </span>
       </div>
 
-      <div className="upload-area">
+      <div
+        className={`upload-area ${isDragging ? 'dragging' : ''}`}
+        onDragOver={(event) => {
+          event.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+      >
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept={IMAGE_UPLOAD_ACCEPT}
           multiple
           onChange={handleFileSelect}
+          disabled={processing}
           style={{ display: 'none' }}
         />
 
@@ -66,8 +124,19 @@ export function ImageUpload({ onImagesChange, maxImages = 10 }) {
             onClick={() => fileInputRef.current?.click()}
           >
             <Upload size={48} />
-            <p>Click to upload images</p>
+            <p>{processing ? 'Converting photos...' : 'Click to upload images'}</p>
             <span>or drag and drop</span>
+            <button
+              type="button"
+              className="photo-converter-button"
+              onClick={(event) => {
+                event.stopPropagation();
+                fileInputRef.current?.click();
+              }}
+              disabled={processing}
+            >
+              {processing ? 'Converting...' : 'Convert & add photos'}
+            </button>
           </div>
         ) : (
           <div className="image-grid">
@@ -89,11 +158,15 @@ export function ImageUpload({ onImagesChange, maxImages = 10 }) {
 
             {images.length < maxImages && (
               <div 
-                className="add-more"
-                onClick={() => fileInputRef.current?.click()}
+                className={`add-more ${processing ? 'disabled' : ''}`}
+                onClick={() => {
+                  if (!processing) {
+                    fileInputRef.current?.click();
+                  }
+                }}
               >
                 <ImageIcon size={32} />
-                <span>Add More</span>
+                <span>{processing ? 'Converting...' : 'Add More'}</span>
               </div>
             )}
           </div>
@@ -105,6 +178,7 @@ export function ImageUpload({ onImagesChange, maxImages = 10 }) {
           First image will be used as the featured image
         </p>
       )}
+      {message && <p className="re-upload-note">{message}</p>}
     </div>
   );
 }
