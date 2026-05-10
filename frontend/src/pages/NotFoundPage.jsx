@@ -1,17 +1,21 @@
 import { Link } from 'react-router-dom';
+import { Home } from 'lucide-react';
 
 function NotFoundPage() {
   return (
-    <div className="fullscreen-center">
-      <div className="status-panel wide-panel">
-        <p className="status-kicker">404</p>
-        <h1>Page Not Found</h1>
-        <p>The route you entered does not exist in this frontend module.</p>
-        <Link className="button-primary inline-action" to="/">
-          Go to Home Redirect
+    <main className="re-simple-state-page">
+      <section className="re-simple-state-card">
+        <div aria-hidden="true">
+          <Home size={34} />
+        </div>
+        <p className="re-eyebrow">404</p>
+        <h1>Lost your way?</h1>
+        <p>The page you opened is not available in RentEase.</p>
+        <Link className="re-btn re-btn-primary" to="/">
+          Go Home
         </Link>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
 

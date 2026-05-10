@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/helpers.php';
 
 require_methods(['GET', 'POST']);
+ensure_seeker_feature_schema();
 
 $method = request_method();
 $payload = $method === 'POST' ? request_payload() : [];
@@ -55,6 +56,9 @@ function handle_register(array $payload): void
     $password = (string)$payload['password'];
     $role = strtolower(trim((string)$payload['role']));
     $contactNumber = trim((string)$payload['contact_number']);
+    $emergencyContactName = trim((string)($payload['emergency_contact_name'] ?? ''));
+    $emergencyContactNumber = trim((string)($payload['emergency_contact_number'] ?? ''));
+    $schoolOrWorkplace = trim((string)($payload['school_or_workplace'] ?? ''));
 
     $errors = [];
     if ($fullName === '') {
@@ -72,6 +76,15 @@ function handle_register(array $payload): void
     if ($contactNumber === '') {
         $errors[] = 'contact_number is required.';
     }
+    if ($emergencyContactName !== '' && strlen($emergencyContactName) > 100) {
+        $errors[] = 'emergency_contact_name cannot exceed 100 characters.';
+    }
+    if ($emergencyContactNumber !== '' && strlen($emergencyContactNumber) > 20) {
+        $errors[] = 'emergency_contact_number cannot exceed 20 characters.';
+    }
+    if ($schoolOrWorkplace !== '' && strlen($schoolOrWorkplace) > 150) {
+        $errors[] = 'school_or_workplace cannot exceed 150 characters.';
+    }
 
     if (!empty($errors)) {
         json_response(false, 'Validation failed.', new stdClass(), $errors, 400);
@@ -86,8 +99,31 @@ function handle_register(array $payload): void
     $passwordHash = password_hash($password, PASSWORD_DEFAULT);
     
     $insert = db()->prepare(
-        'INSERT INTO users (full_name, email, password_hash, role, contact_number, account_status, email_verified, created_at)
-         VALUES (:full_name, :email, :password_hash, :role, :contact_number, :account_status, 1, NOW())'
+        'INSERT INTO users (
+            full_name,
+            email,
+            password_hash,
+            role,
+            contact_number,
+            account_status,
+            email_verified,
+            emergency_contact_name,
+            emergency_contact_number,
+            school_or_workplace,
+            created_at
+         ) VALUES (
+            :full_name,
+            :email,
+            :password_hash,
+            :role,
+            :contact_number,
+            :account_status,
+            1,
+            :emergency_contact_name,
+            :emergency_contact_number,
+            :school_or_workplace,
+            NOW()
+         )'
     );
     $insert->execute([
         ':full_name' => $fullName,
@@ -96,6 +132,9 @@ function handle_register(array $payload): void
         ':role' => $role,
         ':contact_number' => $contactNumber,
         ':account_status' => 'active',
+        ':emergency_contact_name' => $emergencyContactName !== '' ? $emergencyContactName : null,
+        ':emergency_contact_number' => $emergencyContactNumber !== '' ? $emergencyContactNumber : null,
+        ':school_or_workplace' => $schoolOrWorkplace !== '' ? $schoolOrWorkplace : null,
     ]);
 
     $newUserId = (int)db()->lastInsertId();
@@ -184,9 +223,59 @@ function handle_update_profile(array $payload): void
         if ($contactNumber === '') {
             json_response(false, 'Validation failed.', new stdClass(), ['contact_number must not be empty.'], 400);
         }
+        if (strlen($contactNumber) > 20) {
+            json_response(false, 'Validation failed.', new stdClass(), ['contact_number cannot exceed 20 characters.'], 400);
+        }
 
         $updates[] = 'contact_number = :contact_number';
         $params[':contact_number'] = $contactNumber;
+    }
+
+    if (array_key_exists('school_or_workplace', $payload)) {
+        $schoolOrWorkplace = trim((string)$payload['school_or_workplace']);
+        if (strlen($schoolOrWorkplace) > 150) {
+            json_response(false, 'Validation failed.', new stdClass(), ['school_or_workplace cannot exceed 150 characters.'], 400);
+        }
+
+        $updates[] = 'school_or_workplace = :school_or_workplace';
+        $params[':school_or_workplace'] = $schoolOrWorkplace !== '' ? $schoolOrWorkplace : null;
+    }
+
+    if (array_key_exists('emergency_contact_name', $payload)) {
+        $emergencyName = trim((string)$payload['emergency_contact_name']);
+        if (strlen($emergencyName) > 100) {
+            json_response(false, 'Validation failed.', new stdClass(), ['emergency_contact_name cannot exceed 100 characters.'], 400);
+        }
+
+        $updates[] = 'emergency_contact_name = :emergency_contact_name';
+        $params[':emergency_contact_name'] = $emergencyName !== '' ? $emergencyName : null;
+    }
+
+    if (array_key_exists('emergency_contact_number', $payload)) {
+        $emergencyNumber = trim((string)$payload['emergency_contact_number']);
+        if (strlen($emergencyNumber) > 20) {
+            json_response(false, 'Validation failed.', new stdClass(), ['emergency_contact_number cannot exceed 20 characters.'], 400);
+        }
+
+        $updates[] = 'emergency_contact_number = :emergency_contact_number';
+        $params[':emergency_contact_number'] = $emergencyNumber !== '' ? $emergencyNumber : null;
+    }
+
+    if (isset($_FILES['profile_photo']) && is_array($_FILES['profile_photo'])) {
+        $profilePhotoPath = store_uploaded_file(
+            $_FILES['profile_photo'],
+            'storage/profiles/' . $userId,
+            [
+                'image/jpeg' => 'jpg',
+                'image/png' => 'png',
+                'image/webp' => 'webp',
+            ],
+            2 * 1024 * 1024,
+            'profile_photo'
+        );
+
+        $updates[] = 'profile_photo = :profile_photo';
+        $params[':profile_photo'] = $profilePhotoPath;
     }
 
     if (empty($updates)) {
@@ -202,7 +291,7 @@ function handle_update_profile(array $payload): void
         json_response(false, 'User not found after update.', new stdClass(), [], 404);
     }
 
-    log_activity($userId, 'Updated own profile', 'auth');
+    log_activity($userId, 'Updated profile information', 'auth');
     json_response(true, 'Profile updated successfully.', sanitize_user($user), []);
 }
 
@@ -234,7 +323,7 @@ function handle_change_password(array $payload): void
     ]);
 
     current_user(true);
-    log_activity((int)$actor['user_id'], 'Changed account password', 'auth');
+    log_activity((int)$actor['user_id'], 'Changed password', 'auth');
     json_response(true, 'Password updated successfully.', new stdClass(), []);
 }
 

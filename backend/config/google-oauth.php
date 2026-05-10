@@ -11,16 +11,26 @@
 // Get your Google OAuth credentials from:
 // https://console.cloud.google.com/apis/credentials
 
-define('GOOGLE_OAUTH_ENABLED', true);
+function google_oauth_config(string $name, string $defaultValue): string
+{
+    $value = getenv($name);
+    if ($value === false || $value === '') {
+        return $defaultValue;
+    }
+
+    return $value;
+}
+
+define('GOOGLE_OAUTH_ENABLED', filter_var(google_oauth_config('GOOGLE_OAUTH_ENABLED', 'true'), FILTER_VALIDATE_BOOLEAN));
 
 // Google OAuth Client ID (from Google Cloud Console)
-define('GOOGLE_CLIENT_ID', '845871313570-a58vib4ul9bap6euavssl4s0t5gehe4u.apps.googleusercontent.com');
+define('GOOGLE_CLIENT_ID', google_oauth_config('GOOGLE_CLIENT_ID', '845871313570-a58vib4ul9bap6euavssl4s0t5gehe4u.apps.googleusercontent.com'));
 
-// Google OAuth Client Secret (from Google Cloud Console)
-define('GOOGLE_CLIENT_SECRET', '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');
+// Google OAuth Client Secret (set GOOGLE_CLIENT_SECRET in the environment)
+define('GOOGLE_CLIENT_SECRET', google_oauth_config('GOOGLE_CLIENT_SECRET', ''));
 
 // Authorized redirect URI (must match Google Cloud Console)
-define('GOOGLE_REDIRECT_URI', 'http://localhost:5173/auth/google/callback');
+define('GOOGLE_REDIRECT_URI', google_oauth_config('GOOGLE_REDIRECT_URI', 'http://localhost:5173/auth/google/callback'));
 
 // ============================================
 // OAUTH SETTINGS

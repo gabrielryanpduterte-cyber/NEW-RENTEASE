@@ -6,7 +6,7 @@ export const ROLES = Object.freeze({
 });
 
 const DASHBOARD_PATHS = Object.freeze({
-  [ROLES.SEEKER]: '/seeker/dashboard',
+  [ROLES.SEEKER]: '/dashboard',
   [ROLES.PARENT]: '/parent/dashboard',
   [ROLES.OWNER]: '/owner/dashboard',
   [ROLES.ADMIN]: '/admin/dashboard',

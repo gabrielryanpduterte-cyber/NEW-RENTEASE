@@ -11,6 +11,8 @@ function CompleteProfilePage() {
   const [form, setForm] = useState({
     role: 'seeker',
     contact_number: '',
+    password: '',
+    confirm_password: '',
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -72,6 +74,19 @@ function CompleteProfilePage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    // Validate passwords match
+    if (form.password !== form.confirm_password) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    // Validate password strength
+    if (form.password.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -85,6 +100,7 @@ function CompleteProfilePage() {
           google_token: googleCredential,
           role: form.role,
           contact_number: form.contact_number,
+          password: form.password,
         }),
       });
 
@@ -131,6 +147,12 @@ function CompleteProfilePage() {
           <h1>Complete Your Profile</h1>
           <p className="subtitle">Just one more step to get started with RentEase</p>
 
+          <div className="notice-panel" style={{ marginTop: '1rem' }}>
+            <p style={{ fontSize: '0.85rem', lineHeight: '1.5' }}>
+              💡 <strong>Set a password</strong> so you can also login with your email if needed.
+            </p>
+          </div>
+
           <div className="user-info-preview">
             {googleUserInfo.picture && (
               <img 
@@ -169,6 +191,43 @@ function CompleteProfilePage() {
               title="Please enter a valid Philippine mobile number (09XXXXXXXXX)"
               required
             />
+
+            <label htmlFor="password">Password:</label>
+            <input
+              id="password"
+              type="password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              placeholder="At least 8 characters"
+              minLength={8}
+              required
+            />
+            {form.password && form.password.length < 8 && (
+              <p style={{ fontSize: '0.8rem', color: '#f59e0b', marginTop: '0.25rem' }}>
+                Password must be at least 8 characters
+              </p>
+            )}
+
+            <label htmlFor="confirm_password">Confirm Password:</label>
+            <input
+              id="confirm_password"
+              type="password"
+              value={form.confirm_password}
+              onChange={(e) => setForm({ ...form, confirm_password: e.target.value })}
+              placeholder="Re-enter your password"
+              minLength={8}
+              required
+            />
+            {form.confirm_password && form.password !== form.confirm_password && (
+              <p style={{ fontSize: '0.8rem', color: '#ef4444', marginTop: '0.25rem' }}>
+                Passwords do not match
+              </p>
+            )}
+            {form.confirm_password && form.password === form.confirm_password && form.password.length >= 8 && (
+              <p style={{ fontSize: '0.8rem', color: '#10b981', marginTop: '0.25rem' }}>
+                ✓ Passwords match
+              </p>
+            )}
 
             {error && (
               <div className="error-panel">

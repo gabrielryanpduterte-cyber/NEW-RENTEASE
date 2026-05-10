@@ -13,6 +13,10 @@ function normalizeUser(input) {
     return null;
   }
 
+  const profilePhotoUrl = typeof input.profile_photo_url === 'string'
+    ? input.profile_photo_url.replace(/^\/rentease\/backend/, '/backend')
+    : null;
+
   return {
     user_id: input.user_id ?? null,
     full_name: input.full_name ?? '',
@@ -20,6 +24,11 @@ function normalizeUser(input) {
     role: input.role ?? null,
     contact_number: input.contact_number ?? '',
     account_status: input.account_status ?? 'inactive',
+    profile_photo: input.profile_photo ?? null,
+    profile_photo_url: profilePhotoUrl,
+    emergency_contact_name: input.emergency_contact_name ?? '',
+    emergency_contact_number: input.emergency_contact_number ?? '',
+    school_or_workplace: input.school_or_workplace ?? '',
     created_at: input.created_at ?? null,
   };
 }

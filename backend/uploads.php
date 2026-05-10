@@ -55,6 +55,125 @@ function ensure_uploads_table_exists(): void
             INDEX idx_uploads_visibility (visibility)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
+
+    ensure_uploads_table_schema();
+}
+
+function uploads_column_exists(string $columnName): bool
+{
+    $query = db()->prepare(
+        'SELECT COUNT(*)
+         FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = :table_name
+           AND COLUMN_NAME = :column_name'
+    );
+    $query->execute([
+        ':table_name' => 'uploads',
+        ':column_name' => $columnName,
+    ]);
+
+    return (int)$query->fetchColumn() > 0;
+}
+
+function ensure_uploads_column(string $columnName, string $definition): void
+{
+    if (!uploads_column_exists($columnName)) {
+        db()->exec("ALTER TABLE uploads ADD COLUMN {$columnName} {$definition}");
+    }
+}
+
+function ensure_uploads_table_schema(): void
+{
+    ensure_uploads_column('reservation_id', 'INT(10) UNSIGNED NULL AFTER user_id');
+    ensure_uploads_column('original_name', 'VARCHAR(255) NULL AFTER reservation_id');
+    ensure_uploads_column('stored_name', 'VARCHAR(255) NULL AFTER original_name');
+    ensure_uploads_column('visibility', "ENUM('private', 'owner', 'admin') NOT NULL DEFAULT 'owner' AFTER file_path");
+    ensure_uploads_column('created_at', 'DATETIME NULL AFTER visibility');
+
+    $hasFileName = uploads_column_exists('file_name');
+    $hasUploadedAt = uploads_column_exists('uploaded_at');
+    $hasRelatedEntityType = uploads_column_exists('related_entity_type');
+    $hasRelatedEntityId = uploads_column_exists('related_entity_id');
+
+    if ($hasFileName) {
+        db()->exec(
+            "UPDATE uploads
+             SET original_name = COALESCE(original_name, file_name),
+                 stored_name = COALESCE(stored_name, SUBSTRING_INDEX(file_path, '/', -1))
+             WHERE original_name IS NULL OR stored_name IS NULL"
+        );
+
+        db()->exec('ALTER TABLE uploads MODIFY file_name VARCHAR(255) NULL');
+    } else {
+        db()->exec(
+            "UPDATE uploads
+             SET original_name = COALESCE(original_name, stored_name, 'upload')
+             WHERE original_name IS NULL"
+        );
+    }
+
+    if ($hasUploadedAt) {
+        db()->exec(
+            'UPDATE uploads
+             SET created_at = COALESCE(created_at, uploaded_at)
+             WHERE created_at IS NULL'
+        );
+    }
+
+    if ($hasRelatedEntityType && $hasRelatedEntityId) {
+        db()->exec(
+            "UPDATE uploads
+             SET reservation_id = related_entity_id
+             WHERE reservation_id IS NULL
+               AND related_entity_type = 'reservation'
+               AND related_entity_id IS NOT NULL"
+        );
+    }
+
+    if ($hasRelatedEntityType) {
+        db()->exec("ALTER TABLE uploads MODIFY related_entity_type ENUM('reservation','payment','profile','other') NOT NULL DEFAULT 'other'");
+    }
+
+    db()->exec(
+        "UPDATE uploads
+         SET stored_name = COALESCE(stored_name, SUBSTRING_INDEX(file_path, '/', -1), CONCAT('upload_', upload_id)),
+             original_name = COALESCE(original_name, stored_name, CONCAT('upload_', upload_id)),
+             created_at = COALESCE(created_at, CURRENT_TIMESTAMP)
+         WHERE stored_name IS NULL OR original_name IS NULL OR created_at IS NULL"
+    );
+
+    db()->exec('ALTER TABLE uploads MODIFY original_name VARCHAR(255) NOT NULL');
+    db()->exec('ALTER TABLE uploads MODIFY stored_name VARCHAR(255) NOT NULL');
+    db()->exec('ALTER TABLE uploads MODIFY created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP');
+
+    ensure_uploads_index('idx_uploads_user', 'user_id');
+    ensure_uploads_index('idx_uploads_reservation', 'reservation_id');
+    ensure_uploads_index('idx_uploads_visibility', 'visibility');
+}
+
+function uploads_index_exists(string $indexName): bool
+{
+    $query = db()->prepare(
+        'SELECT COUNT(*)
+         FROM information_schema.STATISTICS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = :table_name
+           AND INDEX_NAME = :index_name'
+    );
+    $query->execute([
+        ':table_name' => 'uploads',
+        ':index_name' => $indexName,
+    ]);
+
+    return (int)$query->fetchColumn() > 0;
+}
+
+function ensure_uploads_index(string $indexName, string $columnName): void
+{
+    if (!uploads_index_exists($indexName)) {
+        db()->exec("CREATE INDEX {$indexName} ON uploads ({$columnName})");
+    }
 }
 
 function uploads_base_select(): string
@@ -316,14 +435,17 @@ function handle_uploads_create(array $actor): void
         json_response(false, 'Upload failed.', new stdClass(), ['Unable to move uploaded file.'], 500);
     }
 
-    $insert = db()->prepare(
-        'INSERT INTO uploads (
-            user_id, reservation_id, original_name, stored_name, mime_type, file_size, file_path, visibility
-        ) VALUES (
-            :user_id, :reservation_id, :original_name, :stored_name, :mime_type, :file_size, :file_path, :visibility
-        )'
-    );
-    $insert->execute([
+    $insertColumns = [
+        'user_id',
+        'reservation_id',
+        'original_name',
+        'stored_name',
+        'mime_type',
+        'file_size',
+        'file_path',
+        'visibility',
+    ];
+    $insertParams = [
         ':user_id' => (int)$actor['user_id'],
         ':reservation_id' => $reservationId,
         ':original_name' => $originalName,
@@ -332,7 +454,27 @@ function handle_uploads_create(array $actor): void
         ':file_size' => $fileSize,
         ':file_path' => 'storage/uploads/' . $storedName,
         ':visibility' => $visibility,
-    ]);
+    ];
+
+    if (uploads_column_exists('file_name')) {
+        $insertColumns[] = 'file_name';
+        $insertParams[':file_name'] = $originalName;
+    }
+    if (uploads_column_exists('related_entity_type')) {
+        $insertColumns[] = 'related_entity_type';
+        $insertParams[':related_entity_type'] = $reservationId === null ? 'other' : 'reservation';
+    }
+    if (uploads_column_exists('related_entity_id')) {
+        $insertColumns[] = 'related_entity_id';
+        $insertParams[':related_entity_id'] = $reservationId;
+    }
+
+    $placeholders = array_map(static fn(string $column): string => ':' . $column, $insertColumns);
+    $insert = db()->prepare(
+        'INSERT INTO uploads (' . implode(', ', $insertColumns) . ')
+         VALUES (' . implode(', ', $placeholders) . ')'
+    );
+    $insert->execute($insertParams);
 
     $uploadId = (int)db()->lastInsertId();
     log_activity((int)$actor['user_id'], "Uploaded file #{$uploadId}", 'uploads');

@@ -7,7 +7,7 @@ require_once __DIR__ . '/config/google-oauth.php';
 require_methods(['POST']);
 
 $payload = request_payload();
-$action = request_action($payload);
+$action = $_GET['action'] ?? $payload['action'] ?? null;
 
 try {
     if ($action === 'google-auth') {
@@ -36,6 +36,7 @@ function handle_google_auth(array $payload): void
     $googleToken = trim((string)$payload['google_token']);
     $role = isset($payload['role']) ? strtolower(trim((string)$payload['role'])) : null;
     $contactNumber = isset($payload['contact_number']) ? trim((string)$payload['contact_number']) : null;
+    $password = isset($payload['password']) ? trim((string)$payload['password']) : null;
 
     $googleUser = verify_google_token($googleToken);
     if (!$googleUser) {
@@ -102,14 +103,14 @@ function handle_google_auth(array $payload): void
         json_response(true, 'Google account linked successfully.', sanitize_user($linkedUser), []);
     }
 
-    if (!$role || !$contactNumber) {
+    if (!$role || !$contactNumber || !$password) {
         json_response(false, 'Additional information required.', [
             'google_user' => [
                 'name' => $fullName,
                 'email' => $email,
                 'picture' => $profilePicture,
             ],
-        ], ['role and contact_number are required for new users.'], 400);
+        ], ['role, contact_number, and password are required for new users.'], 400);
     }
 
     $errors = [];
@@ -122,18 +123,26 @@ function handle_google_auth(array $payload): void
     if ($contactNumber === '') {
         $errors[] = 'contact_number is required.';
     }
+    if ($password === '') {
+        $errors[] = 'password is required.';
+    } elseif (strlen($password) < 8) {
+        $errors[] = 'password must be at least 8 characters long.';
+    }
 
     if (!empty($errors)) {
         json_response(false, 'Validation failed.', new stdClass(), $errors, 400);
     }
 
+    $passwordHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+
     $insert = db()->prepare(
         'INSERT INTO users (full_name, email, password_hash, role, contact_number, account_status, google_id, profile_picture, auth_provider, email_verified, created_at)
-         VALUES (:full_name, :email, NULL, :role, :contact_number, :account_status, :google_id, :profile_picture, :auth_provider, 1, NOW())'
+         VALUES (:full_name, :email, :password_hash, :role, :contact_number, :account_status, :google_id, :profile_picture, :auth_provider, 1, NOW())'
     );
     $insert->execute([
         ':full_name' => $fullName,
         ':email' => $email,
+        ':password_hash' => $passwordHash,
         ':role' => $role,
         ':contact_number' => $contactNumber,
         ':account_status' => 'active',

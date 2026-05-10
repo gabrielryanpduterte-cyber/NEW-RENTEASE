@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/helpers.php';
 
 require_methods(['GET']);
+ensure_owner_feature_schema();
 
 try {
     $actor = require_roles(['owner', 'admin']);
@@ -147,6 +148,11 @@ function build_where_clause(array $conditions): string
 
 function report_monthly_income(array $actor, array $filters): array
 {
+    $billingReport = report_monthly_income_from_billing_cycles($actor, $filters);
+    if (!empty($billingReport['rows'])) {
+        return $billingReport;
+    }
+
     $scope = report_scope_conditions($actor, $filters);
     $dateScoped = apply_payment_date_conditions($scope['conditions'], $scope['params'], $filters);
 
@@ -190,6 +196,85 @@ function report_monthly_income(array $actor, array $filters): array
             'total_due' => $totalDue,
             'total_collected' => $totalCollected,
             'total_payments' => $totalPayments,
+            'total_outstanding' => max($totalDue - $totalCollected, 0.0),
+            'collection_rate' => $totalDue > 0 ? round(($totalCollected / $totalDue) * 100, 2) : 0.0,
+        ],
+    ];
+}
+
+function report_monthly_income_from_billing_cycles(array $actor, array $filters): array
+{
+    if (!db_table_exists('billing_cycles')) {
+        return ['rows' => [], 'summary' => ['total_due' => 0.0, 'total_collected' => 0.0, 'total_payments' => 0]];
+    }
+
+    $scope = report_scope_conditions($actor, $filters);
+    $conditions = $scope['conditions'];
+    $params = $scope['params'];
+
+    if ($filters['date_from'] !== null) {
+        $conditions[] = 'bc.billing_month >= :month_from';
+        $params[':month_from'] = substr((string)$filters['date_from'], 0, 7);
+    }
+    if ($filters['date_to'] !== null) {
+        $conditions[] = 'bc.billing_month <= :month_to';
+        $params[':month_to'] = substr((string)$filters['date_to'], 0, 7);
+    }
+
+    $sql = 'SELECT bc.billing_month AS report_month,
+                   COALESCE(SUM(bc.amount_due), 0) AS total_due,
+                   COALESCE(SUM(CASE WHEN p.payment_status = \'paid\' THEN p.amount_paid ELSE 0 END), 0) AS total_collected,
+                   COUNT(*) AS payments_count,
+                   COUNT(DISTINCT bc.user_id) AS tenant_count
+            FROM billing_cycles bc
+            INNER JOIN rooms r ON r.room_id = bc.room_id
+            INNER JOIN boarding_house b ON b.boarding_house_id = r.boarding_house_id
+            LEFT JOIN payments p ON p.billing_cycle_id = bc.billing_cycle_id'
+        . build_where_clause($conditions)
+        . ' GROUP BY bc.billing_month
+            ORDER BY report_month DESC';
+
+    $query = db()->prepare($sql);
+    $query->execute($params);
+    $rows = $query->fetchAll();
+
+    $normalizedRows = array_map(static function (array $row): array {
+        $totalDue = (float)$row['total_due'];
+        $totalCollected = (float)$row['total_collected'];
+        $outstanding = max($totalDue - $totalCollected, 0.0);
+
+        return [
+            'month' => $row['report_month'],
+            'total_due' => $totalDue,
+            'total_collected' => $totalCollected,
+            'total_outstanding' => $outstanding,
+            'collection_rate' => $totalDue > 0 ? round(($totalCollected / $totalDue) * 100, 2) : 0.0,
+            'payments_count' => (int)$row['payments_count'],
+            'tenant_count' => (int)$row['tenant_count'],
+        ];
+    }, $rows);
+
+    $totalDue = 0.0;
+    $totalCollected = 0.0;
+    $totalPayments = 0;
+    $totalTenantRows = 0;
+
+    foreach ($normalizedRows as $row) {
+        $totalDue += $row['total_due'];
+        $totalCollected += $row['total_collected'];
+        $totalPayments += $row['payments_count'];
+        $totalTenantRows += $row['tenant_count'];
+    }
+
+    return [
+        'rows' => $normalizedRows,
+        'summary' => [
+            'total_due' => $totalDue,
+            'total_collected' => $totalCollected,
+            'total_payments' => $totalPayments,
+            'tenant_count' => $totalTenantRows,
+            'total_outstanding' => max($totalDue - $totalCollected, 0.0),
+            'collection_rate' => $totalDue > 0 ? round(($totalCollected / $totalDue) * 100, 2) : 0.0,
         ],
     ];
 }
@@ -261,11 +346,19 @@ function report_occupancy(array $actor, array $filters): array
 {
     $scope = report_scope_conditions($actor, $filters);
 
-    $sql = 'SELECT r.availability_status, COUNT(*) AS room_count
+    $sql = "SELECT
+                   CASE
+                       WHEN r.is_archived = 1 OR r.availability_status = 'archived' THEN 'archived'
+                       ELSE r.availability_status
+                   END AS availability_status,
+                   COUNT(*) AS room_count
             FROM rooms r
-            INNER JOIN boarding_house b ON b.boarding_house_id = r.boarding_house_id'
+            INNER JOIN boarding_house b ON b.boarding_house_id = r.boarding_house_id"
         . build_where_clause($scope['conditions'])
-        . ' GROUP BY r.availability_status';
+        . " GROUP BY CASE
+                       WHEN r.is_archived = 1 OR r.availability_status = 'archived' THEN 'archived'
+                       ELSE r.availability_status
+                   END";
 
     $query = db()->prepare($sql);
     $query->execute($scope['params']);
@@ -275,6 +368,7 @@ function report_occupancy(array $actor, array $filters): array
         'available' => 0,
         'unavailable' => 0,
         'occupied' => 0,
+        'archived' => 0,
     ];
 
     foreach ($rows as $row) {
@@ -282,9 +376,10 @@ function report_occupancy(array $actor, array $filters): array
         $counts[$status] = (int)$row['room_count'];
     }
 
-    $totalRooms = $counts['available'] + $counts['unavailable'] + $counts['occupied'];
+    $totalRooms = $counts['available'] + $counts['unavailable'] + $counts['occupied'] + $counts['archived'];
+    $activeRooms = max($totalRooms - $counts['archived'], 0);
     $occupancyRate = $totalRooms > 0
-        ? round(($counts['occupied'] / $totalRooms) * 100, 2)
+        ? round(($counts['occupied'] / max($activeRooms, 1)) * 100, 2)
         : 0.0;
 
     return [
@@ -292,6 +387,7 @@ function report_occupancy(array $actor, array $filters): array
         'available_rooms' => $counts['available'],
         'unavailable_rooms' => $counts['unavailable'],
         'occupied_rooms' => $counts['occupied'],
+        'archived_rooms' => $counts['archived'],
         'occupancy_rate_percent' => $occupancyRate,
     ];
 }
@@ -316,6 +412,7 @@ function report_reservation_stats(array $actor, array $filters): array
         'pending' => 0,
         'approved' => 0,
         'rejected' => 0,
+        'cancelled' => 0,
     ];
 
     foreach ($rows as $row) {
@@ -330,6 +427,7 @@ function report_reservation_stats(array $actor, array $filters): array
         'pending' => $counts['pending'],
         'approved' => $counts['approved'],
         'rejected' => $counts['rejected'],
-        'total' => $counts['pending'] + $counts['approved'] + $counts['rejected'],
+        'cancelled' => $counts['cancelled'],
+        'total' => $counts['pending'] + $counts['approved'] + $counts['rejected'] + $counts['cancelled'],
     ];
 }

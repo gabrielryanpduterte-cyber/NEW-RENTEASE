@@ -4,21 +4,34 @@ declare(strict_types=1);
 require_once __DIR__ . '/helpers.php';
 
 require_methods(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
+ensure_seeker_feature_schema();
+ensure_owner_feature_schema();
+
 $method = request_method();
+$payload = in_array($method, ['POST', 'PUT', 'PATCH'], true) ? request_payload() : [];
+$action = request_action($payload);
 
 try {
     $actor = require_auth();
 
     if ($method === 'GET') {
+        if ($action === 'proof') {
+            handle_payment_proof_download($actor);
+        }
+
         handle_payments_get($actor);
     }
 
     if ($method === 'POST') {
-        handle_payments_create($actor, request_payload());
+        if ($action === 'upload_proof') {
+            handle_payment_upload_proof($actor, $payload);
+        }
+
+        handle_payments_create($actor, $payload);
     }
 
     if ($method === 'PUT' || $method === 'PATCH') {
-        handle_payments_update($actor, request_payload());
+        handle_payments_update($actor, $payload);
     }
 
     if ($method === 'DELETE') {
@@ -51,7 +64,7 @@ function handle_payments_get(array $actor): void
             json_response(false, 'Forbidden.', new stdClass(), ['You are not allowed to access this payment.'], 403);
         }
 
-        json_response(true, 'Payment fetched successfully.', $payment, []);
+        json_response(true, 'Payment fetched successfully.', normalize_payment_row($payment), []);
     }
 
     $conditions = [];
@@ -115,7 +128,7 @@ function handle_payments_get(array $actor): void
 
     $query = db()->prepare($sql);
     $query->execute($params);
-    $payments = $query->fetchAll();
+    $payments = array_map('normalize_payment_row', $query->fetchAll());
 
     json_response(true, 'Payments fetched successfully.', $payments, []);
 }
@@ -136,6 +149,9 @@ function handle_payments_create(array $actor, array $payload): void
     $billingPeriod = trim((string)$payload['billing_period']);
     $paymentDate = trim((string)($payload['payment_date'] ?? date('Y-m-d')));
     $paymentStatus = strtolower(trim((string)($payload['payment_status'] ?? '')));
+    $billingCycleId = parse_positive_int($payload['billing_cycle_id'] ?? null);
+    $paymentMethod = strtolower(trim((string)($payload['payment_method'] ?? 'cash')));
+    $notes = trim((string)($payload['notes'] ?? ''));
 
     $errors = [];
     if ($reservationId === null) {
@@ -159,6 +175,12 @@ function handle_payments_create(array $actor, array $payload): void
     if (!is_valid_payment_date($paymentDate)) {
         $errors[] = 'payment_date must use YYYY-MM-DD format.';
     }
+    if (!in_array($paymentMethod, ['cash', 'gcash', 'bank_transfer', 'other'], true)) {
+        $errors[] = 'payment_method must be cash, gcash, bank_transfer, or other.';
+    }
+    if (strlen($notes) > 1000) {
+        $errors[] = 'notes cannot exceed 1000 characters.';
+    }
     if (!empty($errors)) {
         json_response(false, 'Validation failed.', new stdClass(), $errors, 400);
     }
@@ -178,6 +200,23 @@ function handle_payments_create(array $actor, array $payload): void
         json_response(false, 'Validation failed.', new stdClass(), ['reservation_id does not match the provided user_id/room_id.'], 400);
     }
 
+    if ($billingCycleId !== null) {
+        $cycleQuery = db()->prepare(
+            'SELECT billing_cycle_id, reservation_id, user_id, room_id
+             FROM billing_cycles
+             WHERE billing_cycle_id = :billing_cycle_id
+             LIMIT 1'
+        );
+        $cycleQuery->execute([':billing_cycle_id' => $billingCycleId]);
+        $cycle = $cycleQuery->fetch();
+        if (!$cycle) {
+            json_response(false, 'Validation failed.', new stdClass(), ['billing_cycle_id does not exist.'], 400);
+        }
+        if ((int)$cycle['reservation_id'] !== $reservationId || (int)$cycle['user_id'] !== $userId || (int)$cycle['room_id'] !== $roomId) {
+            json_response(false, 'Validation failed.', new stdClass(), ['billing_cycle_id does not match the provided reservation.'], 400);
+        }
+    }
+
     if ($actor['role'] === 'owner' && !owner_owns_room((int)$actor['user_id'], $roomId)) {
         json_response(false, 'Forbidden.', new stdClass(), ['You can only record payments for your own rooms.'], 403);
     }
@@ -193,9 +232,13 @@ function handle_payments_create(array $actor, array $payload): void
 
     $insert = db()->prepare(
         'INSERT INTO payments (
-            reservation_id, user_id, room_id, amount_due, amount_paid, payment_status, payment_date, billing_period, recorded_by
+            reservation_id, user_id, room_id, amount_due, amount_paid, payment_status,
+            payment_date, billing_period, recorded_by, billing_cycle_id, payment_method,
+            received_by, notes
          ) VALUES (
-            :reservation_id, :user_id, :room_id, :amount_due, :amount_paid, :payment_status, :payment_date, :billing_period, :recorded_by
+            :reservation_id, :user_id, :room_id, :amount_due, :amount_paid, :payment_status,
+            :payment_date, :billing_period, :recorded_by, :billing_cycle_id, :payment_method,
+            :received_by, :notes
          )'
     );
     $insert->execute([
@@ -208,6 +251,10 @@ function handle_payments_create(array $actor, array $payload): void
         ':payment_date' => $paymentDate,
         ':billing_period' => $billingPeriod,
         ':recorded_by' => (int)$actor['user_id'],
+        ':billing_cycle_id' => $billingCycleId,
+        ':payment_method' => $paymentMethod,
+        ':received_by' => $paymentStatus === 'paid' ? (int)$actor['user_id'] : null,
+        ':notes' => $notes !== '' ? $notes : null,
     ]);
 
     $newId = (int)db()->lastInsertId();
@@ -217,7 +264,107 @@ function handle_payments_create(array $actor, array $payload): void
     $fetch->execute([':id' => $newId]);
     $row = $fetch->fetch();
 
-    json_response(true, 'Payment recorded successfully.', $row ?: ['payment_id' => $newId], [], 201);
+    json_response(true, 'Payment recorded successfully.', $row ? normalize_payment_row($row) : ['payment_id' => $newId], [], 201);
+}
+
+function handle_payment_upload_proof(array $actor, array $payload): void
+{
+    if ($actor['role'] !== 'seeker') {
+        json_response(false, 'Forbidden.', new stdClass(), ['Only seekers can upload payment proof.'], 403);
+    }
+
+    $paymentId = parse_positive_int($_GET['payment_id'] ?? ($payload['payment_id'] ?? null));
+    if ($paymentId === null) {
+        json_response(false, 'Validation failed.', new stdClass(), ['payment_id is required.'], 400);
+    }
+
+    $payment = find_payment_for_action($paymentId);
+    if ($payment === null) {
+        json_response(false, 'Payment not found.', new stdClass(), [], 404);
+    }
+    if ((int)$payment['user_id'] !== (int)$actor['user_id']) {
+        json_response(false, 'Forbidden.', new stdClass(), ['You can only upload proof for your own payments.'], 403);
+    }
+    if (strtolower((string)$payment['payment_status']) !== 'unpaid') {
+        json_response(false, 'Validation failed.', new stdClass(), ['Proof can only be uploaded for unpaid records.'], 400);
+    }
+    if (!isset($_FILES['proof']) || !is_array($_FILES['proof'])) {
+        json_response(false, 'Validation failed.', new stdClass(), ['proof is required as multipart form-data.'], 400);
+    }
+
+    $proofPath = store_uploaded_file(
+        $_FILES['proof'],
+        'storage/private/proofs/' . (int)$actor['user_id'],
+        [
+            'application/pdf' => 'pdf',
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+        ],
+        5 * 1024 * 1024,
+        'proof'
+    );
+
+    $notes = trim((string)($payload['notes'] ?? ''));
+    if ($notes !== '' && strlen($notes) > 1000) {
+        json_response(false, 'Validation failed.', new stdClass(), ['notes cannot exceed 1000 characters.'], 400);
+    }
+
+    $update = db()->prepare(
+        'UPDATE payments
+         SET proof_of_payment_path = :proof_of_payment_path,
+             notes = :notes
+         WHERE payment_id = :payment_id'
+    );
+    $update->execute([
+        ':proof_of_payment_path' => $proofPath,
+        ':notes' => $notes !== '' ? $notes : ($payment['notes'] ?? null),
+        ':payment_id' => $paymentId,
+    ]);
+
+    log_activity((int)$actor['user_id'], 'Uploaded payment proof for ' . (string)$payment['billing_period'], 'payments');
+
+    $updated = find_payment_for_action($paymentId);
+    json_response(true, 'Payment proof uploaded successfully.', $updated ? normalize_payment_row($updated) : new stdClass(), []);
+}
+
+function handle_payment_proof_download(array $actor): void
+{
+    $paymentId = parse_positive_int($_GET['payment_id'] ?? null);
+    if ($paymentId === null) {
+        json_response(false, 'Validation failed.', new stdClass(), ['payment_id is required.'], 400);
+    }
+
+    $payment = find_payment_for_action($paymentId);
+    if ($payment === null) {
+        json_response(false, 'Payment not found.', new stdClass(), [], 404);
+    }
+    if (!can_access_payment($actor, $payment)) {
+        json_response(false, 'Forbidden.', new stdClass(), ['You are not allowed to access this payment proof.'], 403);
+    }
+
+    $relativePath = trim((string)($payment['proof_of_payment_path'] ?? ''));
+    if ($relativePath === '') {
+        json_response(false, 'Payment proof not found.', new stdClass(), [], 404);
+    }
+
+    $absolutePath = realpath(__DIR__ . '/' . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $relativePath));
+    $storageRoot = realpath(__DIR__ . '/storage/private/proofs');
+    if ($absolutePath === false || $storageRoot === false || strpos($absolutePath, $storageRoot) !== 0 || !is_file($absolutePath)) {
+        json_response(false, 'Payment proof not found.', new stdClass(), [], 404);
+    }
+
+    $mimeType = 'application/octet-stream';
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    if ($finfo) {
+        $mimeType = (string)finfo_file($finfo, $absolutePath);
+        finfo_close($finfo);
+    }
+
+    header('Content-Type: ' . $mimeType);
+    header('Content-Length: ' . (string)filesize($absolutePath));
+    header('Content-Disposition: inline; filename="' . basename($absolutePath) . '"');
+    readfile($absolutePath);
+    exit;
 }
 
 function handle_payments_update(array $actor, array $payload): void
@@ -288,6 +435,24 @@ function handle_payments_update(array $actor, array $payload): void
         $updates[] = 'payment_date = :payment_date';
         $params[':payment_date'] = $paymentDate;
     }
+    if (array_key_exists('payment_method', $payload)) {
+        $paymentMethod = strtolower(trim((string)$payload['payment_method']));
+        if (!in_array($paymentMethod, ['cash', 'gcash', 'bank_transfer', 'other'], true)) {
+            json_response(false, 'Validation failed.', new stdClass(), ['payment_method must be cash, gcash, bank_transfer, or other.'], 400);
+        }
+        $updates[] = 'payment_method = :payment_method';
+        $params[':payment_method'] = $paymentMethod;
+        $updates[] = 'received_by = :received_by';
+        $params[':received_by'] = (int)$actor['user_id'];
+    }
+    if (array_key_exists('notes', $payload)) {
+        $notes = trim((string)$payload['notes']);
+        if (strlen($notes) > 1000) {
+            json_response(false, 'Validation failed.', new stdClass(), ['notes cannot exceed 1000 characters.'], 400);
+        }
+        $updates[] = 'notes = :notes';
+        $params[':notes'] = $notes !== '' ? $notes : null;
+    }
     if (array_key_exists('billing_period', $payload)) {
         $billingPeriod = trim((string)$payload['billing_period']);
         if ($billingPeriod === '') {
@@ -317,7 +482,7 @@ function handle_payments_update(array $actor, array $payload): void
     $fetch->execute([':payment_id' => $paymentId]);
     $row = $fetch->fetch();
 
-    json_response(true, 'Payment updated successfully.', $row ?: new stdClass(), []);
+    json_response(true, 'Payment updated successfully.', $row ? normalize_payment_row($row) : new stdClass(), []);
 }
 
 function handle_payments_delete(array $actor): void
@@ -372,6 +537,35 @@ function can_access_payment(array $actor, array $paymentRow): bool
     }
 
     return false;
+}
+
+function find_payment_for_action(int $paymentId): ?array
+{
+    $query = db()->prepare(
+        'SELECT p.*, b.owner_id
+         FROM payments p
+         INNER JOIN rooms r ON r.room_id = p.room_id
+         INNER JOIN boarding_house b ON b.boarding_house_id = r.boarding_house_id
+         WHERE p.payment_id = :payment_id
+         LIMIT 1'
+    );
+    $query->execute([':payment_id' => $paymentId]);
+    $payment = $query->fetch();
+
+    return $payment ?: null;
+}
+
+function normalize_payment_row(array $payment): array
+{
+    $paymentId = isset($payment['payment_id']) ? (int)$payment['payment_id'] : null;
+    $proofPath = trim((string)($payment['proof_of_payment_path'] ?? ''));
+    $payment['payment_id'] = $paymentId;
+    $payment['proof_uploaded'] = $proofPath !== '';
+    $payment['proof_url'] = ($paymentId !== null && $proofPath !== '')
+        ? backend_endpoint_url('payments.php?action=proof&payment_id=' . $paymentId)
+        : null;
+
+    return $payment;
 }
 
 function is_valid_payment_date(string $date): bool

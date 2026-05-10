@@ -93,7 +93,7 @@ Or copy-paste the SQL from `phase12_google_oauth_schema.sql` into phpMyAdmin SQL
 4. **Copy Credentials:**
    - You'll see a popup with:
      - **Client ID**: `123456789-abc...xyz.apps.googleusercontent.com`
-     - **Client Secret**: `GOCSPX-abc...xyz`
+     - **Client Secret**: `<client secret>`
    - Copy both (you'll need them next)
 
 ---

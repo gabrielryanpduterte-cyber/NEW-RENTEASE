@@ -107,6 +107,17 @@ Default local URL:
 
 The Vite proxy rewrites `/backend/*` to `http://localhost/rentease/backend/*`.
 
+### Google Authentication (Optional)
+
+To enable Google Sign-In:
+1. See `QUICK_GOOGLE_SETUP.md` for step-by-step instructions
+2. Configure OAuth Client ID in Google Cloud Console
+3. Update `frontend/src/config/google-oauth.js` with your Client ID
+4. Set `ENABLE_GOOGLE_AUTH = true`
+
+To disable Google Sign-In:
+- Set `ENABLE_GOOGLE_AUTH = false` in `frontend/src/config/google-oauth.js`
+
 ## Demo Accounts
 
 These are pre-seeded by `rentease_final_phase7.sql`:
@@ -193,10 +204,50 @@ powershell -ExecutionPolicy Bypass -File scripts\phase10-onboarding-smoke-test.p
 - Demo reseed script: `database/phase7_demo_seed.sql`
 - Defense runbook: `DEFENSE_RUNBOOK.md`
 
+## Quick Start (5 Minutes)
+
+Get RENTEASE running immediately:
+
+```powershell
+# Run automated setup
+.\scripts\quick-setup.ps1
+
+# Start frontend
+cd frontend
+npm run dev
+```
+
+Then visit `http://localhost:5173` and login with demo accounts.
+
+**See `QUICK_START.md` for detailed instructions and troubleshooting.**
+
+## Deployment
+
+### Local Development
+
+1. **Quick Setup**: Run `.\scripts\quick-setup.ps1`
+2. **Verify**: Run `.\scripts\verify-deployment.ps1`
+3. **Test**: Run `.\scripts\pre-deployment-test.ps1`
+4. **Start**: `cd frontend && npm run dev`
+
+### Production Deployment
+
+1. **Review**: Read `DEPLOYMENT_STATUS.md` for system readiness
+2. **Checklist**: Follow `DEPLOYMENT_CHECKLIST.md` step-by-step
+3. **Deploy**: Follow `PRODUCTION_DEPLOYMENT.md` for server setup
+4. **Verify**: Run smoke tests and verify all features
+
+### Deployment Resources
+
+- **QUICK_START.md** - Get running in 5 minutes
+- **DEPLOYMENT_STATUS.md** - System readiness overview
+- **DEPLOYMENT_CHECKLIST.md** - Comprehensive deployment checklist
+- **PRODUCTION_DEPLOYMENT.md** - Production server deployment guide
+- **DEFENSE_RUNBOOK.md** - Feature walkthrough for demonstrations
+
 ## Known Limitations
 
 - No CI test suite yet (manual verification matrix + phase smoke scripts are used)
 - Single boarding house per owner is enforced by dataset/logic assumptions
 - Upload module currently enforces only PDF/JPG/PNG/WEBP and 5 MB limit
 - Email verification (OTP/link to inbox) is not implemented yet
-- Deployment automation is not included (local/demo setup only)

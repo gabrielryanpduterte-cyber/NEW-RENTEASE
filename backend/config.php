@@ -93,10 +93,11 @@ function db(): PDO
     }
 
     $host = db_config('RENTEASE_DB_HOST', 'localhost');
+    $port = db_config('RENTEASE_DB_PORT', '3307');
     $name = db_config('RENTEASE_DB_NAME', 'rentease_db');
-    $user = db_config('RENTEASE_DB_USER', 'rentease_user');
+    $user = db_config('RENTEASE_DB_USER', 'root');
     $pass = db_config('RENTEASE_DB_PASS', '');
-    $dsn = "mysql:host={$host};dbname={$name};charset=utf8mb4";
+    $dsn = "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4";
 
     try {
         $pdo = new PDO($dsn, $user, $pass, [

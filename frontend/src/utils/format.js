@@ -74,8 +74,12 @@ export function statusClassName(value) {
     return 'pill-warning';
   }
 
-  if (status === 'rejected' || status === 'forbidden' || status === 'error') {
+  if (status === 'rejected' || status === 'revoked' || status === 'forbidden' || status === 'error') {
     return 'pill-danger';
+  }
+
+  if (status === 'cancelled' || status === 'archived' || status === 'no_record') {
+    return 'pill-neutral';
   }
 
   return 'pill-neutral';

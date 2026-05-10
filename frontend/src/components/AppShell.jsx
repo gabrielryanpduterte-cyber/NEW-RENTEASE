@@ -21,13 +21,13 @@ import {
 
 const NAV_BY_ROLE = Object.freeze({
   seeker: [
-    { to: '/seeker/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/seeker/properties', label: 'Browse Properties', icon: Home },
-    { to: '/seeker/dashboard#reservations', label: 'My Bookings', icon: Calendar },
-    { to: '/seeker/dashboard#payments', label: 'Payments', icon: CreditCard },
-    { to: '/seeker/dashboard#uploads', label: 'Documents', icon: FileText },
-    { to: '/seeker/dashboard#feedback', label: 'Feedback', icon: MessageSquare },
-    { to: '/seeker/dashboard#account', label: 'Account', icon: Settings },
+    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { to: '/dashboard/room', label: 'My Room', icon: Home },
+    { to: '/dashboard/reservations', label: 'Reservations', icon: Calendar },
+    { to: '/dashboard/rent', label: 'Rent Status', icon: CreditCard },
+    { to: '/dashboard/guardians', label: 'Guardian Access', icon: Users },
+    { to: '/seeker/feedback', label: 'Feedback', icon: MessageSquare },
+    { to: '/dashboard/profile', label: 'Profile', icon: Settings },
   ],
   parent: [
     { to: '/parent/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -39,22 +39,22 @@ const NAV_BY_ROLE = Object.freeze({
   ],
   owner: [
     { to: '/owner/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/owner/add-property', label: 'Add Property', icon: Home },
-    { to: '/owner/dashboard#rooms', label: 'My Properties', icon: Home },
-    { to: '/owner/dashboard#reservations', label: 'Bookings', icon: Calendar },
-    { to: '/owner/dashboard#payments', label: 'Payments', icon: CreditCard },
-    { to: '/owner/dashboard#reports', label: 'Reports', icon: FileText },
-    { to: '/owner/dashboard#feedback', label: 'Feedback', icon: MessageSquare },
-    { to: '/owner/dashboard#account', label: 'Account', icon: Settings },
+    { to: '/owner/boarding-house', label: 'Boarding House', icon: Home },
+    { to: '/owner/rooms', label: 'Rooms', icon: PanelsTopLeft },
+    { to: '/owner/reservations', label: 'Reservations', icon: Calendar },
+    { to: '/owner/tenants', label: 'Tenants', icon: Users },
+    { to: '/owner/rent-tracking', label: 'Rent Tracking', icon: CreditCard },
+    { to: '/owner/reports', label: 'Reports', icon: FileText },
+    { to: '/owner/profile', label: 'Profile', icon: Settings },
   ],
   admin: [
     { to: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { to: '/admin/dashboard#reports', label: 'Reports', icon: FileText },
     { to: '/admin/dashboard#users', label: 'Users', icon: Users },
+    { to: '/admin/dashboard#boarding-house', label: 'Boarding House', icon: Home },
+    { to: '/admin/dashboard#reports', label: 'Reports', icon: FileText },
     { to: '/admin/dashboard#activity', label: 'Activity Logs', icon: Activity },
     { to: '/admin/dashboard#error', label: 'Error Logs', icon: AlertCircle },
-    { to: '/admin/dashboard#feedback', label: 'Feedback', icon: MessageSquare },
-    { to: '/admin/dashboard#account', label: 'Account', icon: Settings },
+    { to: '/admin/dashboard#account', label: 'Settings', icon: Settings },
   ],
 });
 
@@ -161,6 +161,25 @@ function AppShell({ title, subtitle, quickStats = [], children }) {
           </button>
         </div>
       </aside>
+
+      {role === 'seeker' && (
+        <nav className="seeker-bottom-nav" aria-label="Seeker mobile navigation">
+          {navItems.slice(0, 5).map((item) => {
+            const Icon = item.icon;
+            return (
+              <NavLink
+                key={`mobile-${item.to}`}
+                to={item.to}
+                className={({ isActive }) => `seeker-bottom-link ${isActive ? 'active' : ''}`}
+                title={item.label}
+                end={item.to === roleDashboardPath(role)}
+              >
+                <Icon size={21} />
+              </NavLink>
+            );
+          })}
+        </nav>
+      )}
 
       {/* Main Content */}
       <main className="modern-main">

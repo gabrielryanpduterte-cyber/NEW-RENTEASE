@@ -4,7 +4,7 @@
 
 Your system already has Google OAuth credentials set up:
 - **Client ID**: `845871313570-a58vib4ul9bap6euavssl4s0t5gehe4u.apps.googleusercontent.com`
-- **Client Secret**: `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`
+- **Client Secret**: set `GOOGLE_CLIENT_SECRET` in your local environment
 
 ## 🎯 How Google Auth Works in Your System
 
@@ -40,7 +40,7 @@ clientId: '845871313570-a58vib4ul9bap6euavssl4s0t5gehe4u.apps.googleusercontent.
 ### Backend (`backend/config/google-oauth.php`):
 ```php
 GOOGLE_CLIENT_ID: '845871313570-a58vib4ul9bap6euavssl4s0t5gehe4u.apps.googleusercontent.com'
-GOOGLE_CLIENT_SECRET: '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'
+GOOGLE_CLIENT_SECRET: '<set in GOOGLE_CLIENT_SECRET environment variable>'
 GOOGLE_OAUTH_ENABLED: true
 GOOGLE_AUTO_VERIFY_EMAIL: true
 GOOGLE_ALLOW_ADMIN_ROLE: false (security)

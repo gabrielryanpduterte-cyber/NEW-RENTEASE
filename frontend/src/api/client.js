@@ -98,6 +98,11 @@ export async function apiRequest(endpoint, options = {}) {
     ...(options.headers ?? {}),
   };
 
+  // Add timeout to prevent hanging
+  const timeout = options.timeout ?? 10000; // 10 seconds default
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
   let response;
   try {
     response = await fetch(url, {
@@ -110,9 +115,21 @@ export async function apiRequest(endpoint, options = {}) {
           : options.body
             ? JSON.stringify(options.body)
             : undefined,
-      signal: options.signal,
+      signal: options.signal ?? controller.signal,
     });
+    clearTimeout(timeoutId);
   } catch (error) {
+    clearTimeout(timeoutId);
+
+    if (error.name === 'AbortError') {
+      throw new ApiError(
+        'Request timeout - backend not responding.',
+        0,
+        ['Request took longer than ' + (timeout / 1000) + ' seconds. Check XAMPP Apache is running.'],
+        { endpoint, method },
+      );
+    }
+
     throw new ApiError(
       'Unable to reach backend server.',
       0,
@@ -197,8 +214,8 @@ export const boardingHouseApi = {
     }),
   update: (boardingHouseId, payload) =>
     apiRequest('boarding_house.php', {
-      method: 'PATCH',
-      query: { boarding_house_id: boardingHouseId },
+      method: 'POST',
+      query: { action: 'update', boarding_house_id: boardingHouseId },
       body: payload,
     }),
   remove: (boardingHouseId) =>
@@ -218,9 +235,27 @@ export const roomsApi = {
     }),
   update: (roomId, payload) =>
     apiRequest('rooms.php', {
-      method: 'PATCH',
-      query: { room_id: roomId },
+      method: 'POST',
+      query: { action: 'update', room_id: roomId },
       body: payload,
+    }),
+  archive: (roomId) =>
+    apiRequest('rooms.php', {
+      method: 'POST',
+      query: { action: 'archive', room_id: roomId },
+      body: {},
+    }),
+  unarchive: (roomId) =>
+    apiRequest('rooms.php', {
+      method: 'POST',
+      query: { action: 'unarchive', room_id: roomId },
+      body: {},
+    }),
+  uploadPhotos: (roomId, formData) =>
+    apiRequest('rooms.php', {
+      method: 'POST',
+      query: { action: 'upload_photos', room_id: roomId },
+      body: formData,
     }),
   remove: (roomId) =>
     apiRequest('rooms.php', {
@@ -244,6 +279,24 @@ export const reservationsApi = {
       query: { reservation_id: reservationId },
       body: payload,
     }),
+  approve: (reservationId) =>
+    apiRequest('reservations.php', {
+      method: 'POST',
+      query: { action: 'approve', reservation_id: reservationId },
+      body: {},
+    }),
+  reject: (reservationId, rejectionRemarks) =>
+    apiRequest('reservations.php', {
+      method: 'POST',
+      query: { action: 'reject', reservation_id: reservationId },
+      body: { rejection_remarks: rejectionRemarks },
+    }),
+  cancel: (reservationId, payload = {}) =>
+    apiRequest('reservations.php', {
+      method: 'PATCH',
+      query: { reservation_id: reservationId, action: 'cancel' },
+      body: payload,
+    }),
   remove: (reservationId) =>
     apiRequest('reservations.php', {
       method: 'DELETE',
@@ -265,6 +318,14 @@ export const paymentsApi = {
       query: { payment_id: paymentId },
       body: payload,
     }),
+  uploadProof: (paymentId, formData) =>
+    apiRequest('payments.php', {
+      method: 'POST',
+      query: { action: 'upload_proof', payment_id: paymentId },
+      body: formData,
+    }),
+  proofUrl: (paymentId) =>
+    normalizeEndpoint(appendQuery('payments.php', { action: 'proof', payment_id: paymentId })),
   remove: (paymentId) =>
     apiRequest('payments.php', {
       method: 'DELETE',
@@ -304,6 +365,41 @@ export const errorLogsApi = {
 
 export const reportsApi = {
   get: (query = {}) => apiRequest('reports.php', { query }),
+};
+
+export const ownerDashboardApi = {
+  get: () => apiRequest('owner_dashboard.php'),
+};
+
+export const billingApi = {
+  list: (query = {}) => apiRequest('billing.php', { query }),
+  preview: (month) =>
+    apiRequest('billing.php', {
+      query: { action: 'preview', month },
+    }),
+  generate: (month) =>
+    apiRequest('billing.php', {
+      method: 'POST',
+      query: { action: 'generate' },
+      body: { month },
+    }),
+  markPaid: (billingCycleId, payload) =>
+    apiRequest('billing.php', {
+      method: 'POST',
+      query: { action: 'pay', billing_cycle_id: billingCycleId },
+      body: payload,
+    }),
+  markUnpaid: (paymentId, reason = '') =>
+    apiRequest('billing.php', {
+      method: 'PATCH',
+      query: { action: 'unpaid', payment_id: paymentId },
+      body: { reason },
+    }),
+};
+
+export const tenantsApi = {
+  list: (query = {}) => apiRequest('tenants.php', { query }),
+  get: (tenantId) => apiRequest('tenants.php', { query: { tenant_id: tenantId } }),
 };
 
 export const feedbackApi = {
@@ -365,5 +461,28 @@ export const accountLinksApi = {
     apiRequest('account_links.php', {
       method: 'DELETE',
       query: { link_id: linkId },
+    }),
+};
+
+export const seekerDashboardApi = {
+  dashboard: () => apiRequest('seeker_dashboard.php?action=dashboard'),
+  room: () => apiRequest('seeker_dashboard.php?action=room'),
+};
+
+export const guardianLinksApi = {
+  list: () => apiRequest('guardian_links.php'),
+  create: (payload) =>
+    apiRequest('guardian_links.php', {
+      method: 'POST',
+      body: payload,
+    }),
+  revoke: (guardianLinkId) =>
+    apiRequest('guardian_links.php', {
+      method: 'DELETE',
+      query: { guardian_link_id: guardianLinkId },
+    }),
+  publicView: (token) =>
+    apiRequest('guardian_links.php', {
+      query: { action: 'public', token },
     }),
 };

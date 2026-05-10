@@ -4,7 +4,10 @@ declare(strict_types=1);
 require_once __DIR__ . '/helpers.php';
 
 require_methods(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
+ensure_owner_feature_schema();
 $method = request_method();
+$payload = in_array($method, ['POST', 'PUT', 'PATCH'], true) ? request_payload() : [];
+$action = request_action($payload);
 
 try {
     $actor = require_auth();
@@ -14,11 +17,15 @@ try {
     }
 
     if ($method === 'POST') {
-        handle_boarding_house_create($actor, request_payload());
+        if ($action === 'update') {
+            handle_boarding_house_update($actor, $payload);
+        }
+
+        handle_boarding_house_create($actor, $payload);
     }
 
     if ($method === 'PUT' || $method === 'PATCH') {
-        handle_boarding_house_update($actor, request_payload());
+        handle_boarding_house_update($actor, $payload);
     }
 
     if ($method === 'DELETE') {
@@ -46,7 +53,7 @@ function handle_boarding_house_get(array $actor): void
             json_response(false, 'Boarding house not found.', new stdClass(), [], 404);
         }
 
-        json_response(true, 'Boarding house fetched successfully.', $item, []);
+        json_response(true, 'Boarding house fetched successfully.', normalize_boarding_house_row($item), []);
     }
 
     $conditions = [];
@@ -75,7 +82,7 @@ function handle_boarding_house_get(array $actor): void
     $query->execute($params);
     $items = $query->fetchAll();
 
-    json_response(true, 'Boarding houses fetched successfully.', $items, []);
+    json_response(true, 'Boarding houses fetched successfully.', array_map('normalize_boarding_house_row', $items), []);
 }
 
 function handle_boarding_house_create(array $actor, array $payload): void
@@ -90,6 +97,9 @@ function handle_boarding_house_create(array $actor, array $payload): void
     $address = trim((string)$payload['address']);
     $description = trim((string)($payload['description'] ?? ''));
     $houseRules = trim((string)($payload['house_rules'] ?? ''));
+    $contactNumber = trim((string)($payload['contact_number'] ?? ''));
+    $facebookPage = trim((string)($payload['facebook_page'] ?? ''));
+    $amenitiesList = normalize_amenities_payload($payload['amenities_list'] ?? ($payload['amenities'] ?? []));
 
     $ownerId = (int)$actor['user_id'];
     if ($actor['role'] === 'admin') {
@@ -112,9 +122,29 @@ function handle_boarding_house_create(array $actor, array $payload): void
         json_response(false, 'Validation failed.', new stdClass(), ['This owner already has a boarding house record.'], 400);
     }
 
+    $coverPhoto = null;
+    if (isset($_FILES['cover_photo']) && is_array($_FILES['cover_photo'])) {
+        $coverPhoto = store_uploaded_file(
+            $_FILES['cover_photo'],
+            'storage/public/boarding_houses/' . $ownerId,
+            [
+                'image/jpeg' => 'jpg',
+                'image/png' => 'png',
+                'image/webp' => 'webp',
+            ],
+            3 * 1024 * 1024,
+            'cover_photo'
+        );
+    }
+
     $insert = db()->prepare(
-        'INSERT INTO boarding_house (owner_id, house_name, address, description, house_rules)
-         VALUES (:owner_id, :house_name, :address, :description, :house_rules)'
+        'INSERT INTO boarding_house (
+            owner_id, house_name, address, description, house_rules,
+            contact_number, facebook_page, amenities_list, cover_photo
+         ) VALUES (
+            :owner_id, :house_name, :address, :description, :house_rules,
+            :contact_number, :facebook_page, :amenities_list, :cover_photo
+         )'
     );
     $insert->execute([
         ':owner_id' => $ownerId,
@@ -122,6 +152,10 @@ function handle_boarding_house_create(array $actor, array $payload): void
         ':address' => $address,
         ':description' => $description,
         ':house_rules' => $houseRules,
+        ':contact_number' => $contactNumber !== '' ? $contactNumber : null,
+        ':facebook_page' => $facebookPage !== '' ? $facebookPage : null,
+        ':amenities_list' => json_encode($amenitiesList, JSON_UNESCAPED_UNICODE),
+        ':cover_photo' => $coverPhoto,
     ]);
 
     $newId = (int)db()->lastInsertId();
@@ -131,7 +165,7 @@ function handle_boarding_house_create(array $actor, array $payload): void
     $fetch->execute([':id' => $newId]);
     $row = $fetch->fetch();
 
-    json_response(true, 'Boarding house created successfully.', $row ?: ['boarding_house_id' => $newId], [], 201);
+    json_response(true, 'Boarding house created successfully.', $row ? normalize_boarding_house_row($row) : ['boarding_house_id' => $newId], [], 201);
 }
 
 function handle_boarding_house_update(array $actor, array $payload): void
@@ -175,6 +209,37 @@ function handle_boarding_house_update(array $actor, array $payload): void
         $updates[] = 'house_rules = :house_rules';
         $params[':house_rules'] = trim((string)$payload['house_rules']);
     }
+    if (array_key_exists('contact_number', $payload)) {
+        $updates[] = 'contact_number = :contact_number';
+        $contactNumber = trim((string)$payload['contact_number']);
+        $params[':contact_number'] = $contactNumber !== '' ? $contactNumber : null;
+    }
+    if (array_key_exists('facebook_page', $payload)) {
+        $updates[] = 'facebook_page = :facebook_page';
+        $facebookPage = trim((string)$payload['facebook_page']);
+        $params[':facebook_page'] = $facebookPage !== '' ? $facebookPage : null;
+    }
+    if (array_key_exists('amenities_list', $payload) || array_key_exists('amenities', $payload)) {
+        $updates[] = 'amenities_list = :amenities_list';
+        $params[':amenities_list'] = json_encode(
+            normalize_amenities_payload($payload['amenities_list'] ?? ($payload['amenities'] ?? [])),
+            JSON_UNESCAPED_UNICODE
+        );
+    }
+    if (isset($_FILES['cover_photo']) && is_array($_FILES['cover_photo'])) {
+        $updates[] = 'cover_photo = :cover_photo';
+        $params[':cover_photo'] = store_uploaded_file(
+            $_FILES['cover_photo'],
+            'storage/public/boarding_houses/' . (int)$existing['owner_id'],
+            [
+                'image/jpeg' => 'jpg',
+                'image/png' => 'png',
+                'image/webp' => 'webp',
+            ],
+            3 * 1024 * 1024,
+            'cover_photo'
+        );
+    }
 
     if ($actor['role'] === 'admin' && array_key_exists('owner_id', $payload)) {
         $newOwnerId = parse_positive_int($payload['owner_id']);
@@ -213,13 +278,13 @@ function handle_boarding_house_update(array $actor, array $payload): void
     $update = db()->prepare($sql);
     $update->execute($params);
 
-    log_activity((int)$actor['user_id'], "Updated boarding house #{$boardingHouseId}", 'boarding_house');
+    log_activity((int)$actor['user_id'], 'Updated boarding house profile', 'boarding_house');
 
     $fetch = db()->prepare('SELECT * FROM boarding_house WHERE boarding_house_id = :id LIMIT 1');
     $fetch->execute([':id' => $boardingHouseId]);
     $row = $fetch->fetch();
 
-    json_response(true, 'Boarding house updated successfully.', $row ?: new stdClass(), []);
+    json_response(true, 'Boarding house updated successfully.', $row ? normalize_boarding_house_row($row) : new stdClass(), []);
 }
 
 function handle_boarding_house_delete(array $actor): void
@@ -249,4 +314,41 @@ function handle_boarding_house_delete(array $actor): void
 
     log_activity((int)$actor['user_id'], "Deleted boarding house #{$boardingHouseId}", 'boarding_house');
     json_response(true, 'Boarding house deleted successfully.', new stdClass(), []);
+}
+
+function normalize_boarding_house_row(array $row): array
+{
+    $coverPhoto = trim((string)($row['cover_photo'] ?? ''));
+    $row['boarding_house_id'] = isset($row['boarding_house_id']) ? (int)$row['boarding_house_id'] : null;
+    $row['owner_id'] = isset($row['owner_id']) ? (int)$row['owner_id'] : null;
+    $row['amenities_list'] = decode_json_array($row['amenities_list'] ?? null);
+    $row['cover_photo_url'] = $coverPhoto !== '' ? backend_asset_url($coverPhoto) : null;
+    return $row;
+}
+
+function normalize_amenities_payload($value): array
+{
+    if (is_string($value)) {
+        $decoded = json_decode($value, true);
+        if (is_array($decoded)) {
+            $value = $decoded;
+        } else {
+            $value = array_map('trim', explode(',', $value));
+        }
+    }
+
+    if (!is_array($value)) {
+        return [];
+    }
+
+    $amenities = [];
+    foreach ($value as $item) {
+        $name = is_array($item) ? ($item['name'] ?? $item['amenity_name'] ?? '') : $item;
+        $name = trim((string)$name);
+        if ($name !== '') {
+            $amenities[$name] = $name;
+        }
+    }
+
+    return array_values($amenities);
 }

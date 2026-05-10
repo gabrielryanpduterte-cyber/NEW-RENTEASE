@@ -13,12 +13,32 @@ export default defineConfig({
     },
   },
   server: {
+    port: 5173,
+    strictPort: false,
+    host: true,
     proxy: {
       '/backend': {
         target: 'http://localhost',
         changeOrigin: true,
+        secure: false,
         rewrite: (path) => path.replace(/^\/backend/, '/rentease/backend'),
+        configure: (proxy) => {
+          proxy.on('error', (err) => {
+            console.log('Proxy error:', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req) => {
+            console.log('Proxying:', req.method, req.url);
+          });
+        },
       },
     },
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    chunkSizeWarningLimit: 1000,
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-router-dom'],
   },
 });

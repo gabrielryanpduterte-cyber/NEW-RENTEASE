@@ -1,13 +1,18 @@
 import { GoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom';
-import { GOOGLE_CONFIG } from '../config/google-oauth.js';
+import { ENABLE_GOOGLE_AUTH } from '../config/google-oauth.js';
 
 function GoogleSignInButton({ onSuccess, onError }) {
   const navigate = useNavigate();
 
+  // Don't render if Google Auth is disabled
+  if (!ENABLE_GOOGLE_AUTH) {
+    return null;
+  }
+
   const handleGoogleSuccess = async (credentialResponse) => {
     const token = credentialResponse.credential;
-    
+
     try {
       // Decode JWT to get user info
       const base64Url = token.split('.')[1];
@@ -19,7 +24,7 @@ function GoogleSignInButton({ onSuccess, onError }) {
           .join('')
       );
       const userInfo = JSON.parse(jsonPayload);
-      
+
       // Always go to complete profile page
       // It will check if user exists and redirect accordingly
       navigate('/complete-profile', {
@@ -28,14 +33,23 @@ function GoogleSignInButton({ onSuccess, onError }) {
           googleCredential: token,
         },
       });
+
+      onSuccess?.(userInfo);
     } catch (err) {
       console.error('Google sign-in error:', err);
       onError?.('Failed to process Google sign-in');
     }
   };
 
-  const handleGoogleError = () => {
-    onError?.('Google sign-in failed. Please try again.');
+  const handleGoogleError = (error) => {
+    console.error('Google OAuth error:', error);
+
+    // Check if it's a configuration error
+    if (error?.error === 'idpiframe_initialization_failed') {
+      onError?.('Google Sign-In is not properly configured. Please check GOOGLE_AUTH_SETUP.md');
+    } else {
+      onError?.('Google sign-in failed. Please try again.');
+    }
   };
 
   return (
@@ -48,6 +62,7 @@ function GoogleSignInButton({ onSuccess, onError }) {
         size="large"
         text="continue_with"
         shape="rectangular"
+        auto_select={false}
       />
     </div>
   );
