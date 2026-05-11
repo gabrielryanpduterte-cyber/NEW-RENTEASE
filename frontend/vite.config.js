@@ -4,6 +4,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const nodeEnv = globalThis.process?.env ?? {};
+const proxyTarget = nodeEnv.VITE_PROXY_TARGET || 'http://localhost';
+const proxyRewritePrefix = nodeEnv.VITE_PROXY_REWRITE_PREFIX ?? '/rentease/backend';
+const debugProxy = nodeEnv.VITE_DEBUG_PROXY === 'true';
 
 export default defineConfig({
   plugins: [react()],
@@ -18,16 +22,20 @@ export default defineConfig({
     host: true,
     proxy: {
       '/backend': {
-        target: 'http://localhost',
+        target: proxyTarget,
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path.replace(/^\/backend/, '/rentease/backend'),
+        rewrite: (requestPath) => requestPath.replace(/^\/backend/, proxyRewritePrefix),
         configure: (proxy) => {
           proxy.on('error', (err) => {
-            console.log('Proxy error:', err);
+            if (debugProxy) {
+              console.log('Proxy error:', err);
+            }
           });
           proxy.on('proxyReq', (proxyReq, req) => {
-            console.log('Proxying:', req.method, req.url);
+            if (debugProxy) {
+              console.log('Proxying:', req.method, req.url);
+            }
           });
         },
       },

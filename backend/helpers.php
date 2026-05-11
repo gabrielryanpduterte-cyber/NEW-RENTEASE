@@ -683,27 +683,33 @@ function decode_json_array($value): array
     return is_array($decoded) ? $decoded : [];
 }
 
-function backend_asset_url(string $relativePath): string
+function backend_public_base_url(): string
 {
+    $configuredUrl = config_value('RENTEASE_APP_URL', '');
+    if ($configuredUrl !== '') {
+        return rtrim($configuredUrl, '/');
+    }
+
     $scriptName = (string)($_SERVER['SCRIPT_NAME'] ?? '/rentease/backend/index.php');
     $basePath = rtrim(dirname($scriptName), '/\\');
     if ($basePath === '' || $basePath === '.') {
-        $basePath = '/rentease/backend';
+        return '';
     }
 
+    return $basePath;
+}
+
+function backend_asset_url(string $relativePath): string
+{
+    $basePath = backend_public_base_url();
     $parts = array_map('rawurlencode', explode('/', str_replace('\\', '/', ltrim($relativePath, '/\\'))));
-    return $basePath . '/' . implode('/', $parts);
+    return ($basePath !== '' ? $basePath : '') . '/' . implode('/', $parts);
 }
 
 function backend_endpoint_url(string $scriptWithQuery): string
 {
-    $scriptName = (string)($_SERVER['SCRIPT_NAME'] ?? '/rentease/backend/index.php');
-    $basePath = rtrim(dirname($scriptName), '/\\');
-    if ($basePath === '' || $basePath === '.') {
-        $basePath = '/rentease/backend';
-    }
-
-    return $basePath . '/' . ltrim($scriptWithQuery, '/');
+    $basePath = backend_public_base_url();
+    return ($basePath !== '' ? $basePath : '') . '/' . ltrim($scriptWithQuery, '/');
 }
 
 function generate_uuid_v4(): string
