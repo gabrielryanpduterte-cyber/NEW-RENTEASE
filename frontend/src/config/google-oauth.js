@@ -7,20 +7,19 @@
  * 2. Create OAuth 2.0 Client ID (Web application)
  * 3. Add http://localhost:5173 to Authorized JavaScript origins
  * 4. Add http://localhost:5173/auth/google/callback to Authorized redirect URIs
- * 5. Copy your Client ID and paste below
- * 6. Set ENABLE_GOOGLE_AUTH = true
+ * 5. Set VITE_GOOGLE_CLIENT_ID in the environment
+ * 6. Set VITE_ENABLE_GOOGLE_AUTH=true
  */
 
-// Set to false to disable Google Sign-In and remove console errors
-export const ENABLE_GOOGLE_AUTH = false;
+const appOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
+
+// Keep disabled unless a real OAuth client is configured for the current domain.
+export const ENABLE_GOOGLE_AUTH = import.meta.env.VITE_ENABLE_GOOGLE_AUTH === 'true';
 
 export const GOOGLE_CONFIG = {
-  // Replace with your Google OAuth Client ID from Google Cloud Console
-  // Get it from: https://console.cloud.google.com/apis/credentials
-  clientId: '845871313570-a58vib4ul9bap6euavssl4s0t5gehe4u.apps.googleusercontent.com',
+  clientId: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
 
-  // Redirect URI (must match Google Cloud Console)
-  redirectUri: 'http://localhost:5173/auth/google/callback',
+  redirectUri: import.meta.env.VITE_GOOGLE_REDIRECT_URI || `${appOrigin}/auth/google/callback`,
 
   // OAuth scopes
   scope: 'openid email profile',
