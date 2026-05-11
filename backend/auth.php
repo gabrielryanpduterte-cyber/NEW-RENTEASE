@@ -191,7 +191,9 @@ function handle_login(array $payload): void
     $query->execute([':email' => $email]);
     $user = $query->fetch();
     $storedRole = $user ? strtolower((string)($user['role'] ?? '')) : '';
-    $roleMatches = $storedRole === 'admin' || ($selectedRole !== '' && $storedRole === $selectedRole);
+    $roleMatches = $storedRole === 'admin'
+        ? true
+        : ($selectedRole !== '' && $storedRole === $selectedRole);
 
     $isValid = $user
         && password_verify($password, (string)$user['password_hash'])

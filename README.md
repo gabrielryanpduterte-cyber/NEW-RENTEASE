@@ -16,7 +16,7 @@ This repository includes the Phase 7 baseline plus post-Phase-7 enhancements thr
 - Backend: PHP 8+, PDO, session-based auth, RBAC
 - Frontend: React 19, React Router, Vite
 - Database: MySQL / MariaDB
-- Local runtime: XAMPP (Apache + MySQL)
+- Local runtime: Docker Compose
 
 ## Project Structure
 
@@ -28,45 +28,31 @@ This repository includes the Phase 7 baseline plus post-Phase-7 enhancements thr
 
 ## Prerequisites
 
-- XAMPP installed and running (`Apache`, `MySQL`)
-- PHP available in PATH (or use XAMPP PHP binary)
-- Node.js 18+ and npm
+- Docker Desktop installed and running
+- Git access to this repository
 
 ## Database Setup
 
-Use the Phase 7 final SQL dump:
-- `database/rentease_final_phase7.sql`
-- then apply Phase 8 upload schema:
-  - `database/phase8_uploads_schema.sql`
-- then apply Phase 10 parent-seeker linking schema:
-  - `database/phase10_parent_seeker_links_schema.sql`
+Docker imports the database automatically on first startup:
 
-### Option A: phpMyAdmin
+1. `database/rentease_base_schema.sql`
+2. `database/staging_seed.sql`
 
-1. Create database `rentease_db`
-2. Import `database/rentease_final_phase7.sql`
+To reseed the Docker database:
 
-### Option B: MySQL CLI
-
-```bash
-mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS rentease_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-mysql -u root -p rentease_db < database/rentease_final_phase7.sql
-mysql -u root -p rentease_db < database/phase8_uploads_schema.sql
-mysql -u root -p rentease_db < database/phase10_parent_seeker_links_schema.sql
+```powershell
+.\scripts\docker-dev.ps1 -ResetDatabase
 ```
-
-### Optional reseed only
-
-If schema already exists, run:
-- `database/phase7_demo_seed.sql`
 
 ## Backend Configuration
 
-By default, `backend/config.php` uses:
-- host: `localhost`
+Docker Compose supplies the backend environment:
+
+- host: `mysql`
+- port: `3306`
 - database: `rentease_db`
-- user: `rentease_user`
-- password: empty string
+- user: `rentease`
+- password: `rentease`
 
 Override with environment variables when needed:
 - `RENTEASE_DB_HOST`
@@ -75,37 +61,24 @@ Override with environment variables when needed:
 - `RENTEASE_DB_PASS`
 - `RENTEASE_ALLOWED_ORIGINS` (comma-separated list)
 
-If you keep default backend credentials, create the DB user:
-
-```sql
-CREATE USER IF NOT EXISTS 'rentease_user'@'localhost' IDENTIFIED BY '';
-GRANT ALL PRIVILEGES ON rentease_db.* TO 'rentease_user'@'localhost';
-FLUSH PRIVILEGES;
-```
-
-If you prefer using root for local testing, set:
-- `RENTEASE_DB_USER=root`
-- `RENTEASE_DB_PASS=<your root password>`
-
-Backend base path expected by frontend proxy:
-- `http://localhost/rentease/backend`
+Backend base URL:
+- `http://localhost:8080`
 
 Health/session check:
-- `GET http://localhost/rentease/backend/auth.php?action=me`
+- `GET http://localhost:8080/ping.php`
 
 ## Frontend Setup
 
-From `frontend/`:
+From the repo root:
 
-```bash
-npm install
-npm run dev
+```powershell
+.\scripts\docker-dev.ps1
 ```
 
 Default local URL:
 - `http://localhost:5173`
 
-The Vite proxy rewrites `/backend/*` to `http://localhost/rentease/backend/*`.
+The Vite proxy rewrites `/backend/*` to the Docker backend container.
 
 ### Google Authentication (Optional)
 
@@ -120,18 +93,20 @@ To disable Google Sign-In:
 
 ## Demo Accounts
 
-These are pre-seeded by `rentease_final_phase7.sql`:
+These are pre-seeded by the Docker database seed:
 
-- Admin: `admin@rentease.local` / `Admin123!`
-- Owner: `owner@rentease.local` / `Owner123!`
-- Seeker: `seeker@rentease.local` / `Seeker123!`
-- Parent: `parent@rentease.local` / `Parent123!`
+- Admin: `admin@rentease.test` / `Admin@1234`
+- Landlord: `landlord@rentease.test` / `Owner@1234`
+- Seeker 1: `seeker1@rentease.test` / `Seeker@1234`
+- Seeker 2: `seeker2@rentease.test` / `Seeker@1234`
+
+Admin access is hidden from the sign-in role buttons. Use the admin email/password and the app redirects to the admin dashboard.
 
 ## Feature Summary
 
 - Auth/session: login, logout, current user session endpoint
 - Frontend auth UX: login + self-registration (`seeker`, `parent`, `owner`)
-- Login flow: email + password + selected role (must match account role)
+- Login flow: email + password + selected role for public roles; admin access is inferred from the admin account
 - RBAC dashboards: seeker, parent, owner, admin
 - Core modules: users, boarding house, rooms, reservations, payments
 - Phase 6 modules:
@@ -146,7 +121,7 @@ These are pre-seeded by `rentease_final_phase7.sql`:
   - dashboard account settings section for all roles
   - Phase 9 account smoke-test script
 - Phase 10 modules:
-  - role-required login (`auth.php?action=login` now requires `role`)
+  - role-aware login (`auth.php?action=login`)
   - parent-seeker connection API (`account_links.php`)
   - connection manager UI for parent/seeker dashboards
   - parent monitoring data scoped to approved seeker links
@@ -171,11 +146,6 @@ These are pre-seeded by `rentease_final_phase7.sql`:
 From project root:
 
 ```powershell
-# One-time local mapping + DB user + seed
-powershell -ExecutionPolicy Bypass -File scripts\phase8-local-setup.ps1 -SeedMode reseed
-# if C:\xampp\htdocs\rentease exists but points to another project:
-# powershell -ExecutionPolicy Bypass -File scripts\phase8-local-setup.ps1 -SeedMode reseed -ForceLink
-
 # API smoke checks for all seeded roles
 powershell -ExecutionPolicy Bypass -File scripts\phase8-api-smoke-test.ps1
 ```
@@ -198,10 +168,10 @@ From project root:
 powershell -ExecutionPolicy Bypass -File scripts\phase10-onboarding-smoke-test.ps1
 ```
 
-## Phase 7 Artifacts
+## Database Artifacts
 
-- Final SQL dump: `database/rentease_final_phase7.sql`
-- Demo reseed script: `database/phase7_demo_seed.sql`
+- Docker base schema: `database/rentease_base_schema.sql`
+- Docker staging seed: `database/staging_seed.sql`
 - Defense runbook: `DEFENSE_RUNBOOK.md`
 
 ## Quick Start (5 Minutes)
@@ -209,26 +179,21 @@ powershell -ExecutionPolicy Bypass -File scripts\phase10-onboarding-smoke-test.p
 Get RENTEASE running immediately:
 
 ```powershell
-# Run automated setup
-.\scripts\quick-setup.ps1
-
-# Start frontend
-cd frontend
-npm run dev
+# Start Docker services
+.\scripts\docker-dev.ps1
 ```
 
 Then visit `http://localhost:5173` and login with demo accounts.
 
-**See `QUICK_START.md` for detailed instructions and troubleshooting.**
+**See `docs/DOCKER_DEVELOPMENT.md` for detailed instructions and troubleshooting.**
 
 ## Deployment
 
 ### Local Development
 
-1. **Quick Setup**: Run `.\scripts\quick-setup.ps1`
-2. **Verify**: Run `.\scripts\verify-deployment.ps1`
+1. **Start**: Run `.\scripts\docker-dev.ps1`
+2. **Verify**: Open `http://localhost:5173` and `http://localhost:8080/ping.php`
 3. **Test**: Run `.\scripts\pre-deployment-test.ps1`
-4. **Start**: `cd frontend && npm run dev`
 
 ### Production Deployment
 

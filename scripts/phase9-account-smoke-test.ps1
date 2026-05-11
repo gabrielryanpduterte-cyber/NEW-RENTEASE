@@ -1,5 +1,5 @@
 param(
-    [string]$BaseUrl = 'http://localhost/rentease/backend',
+    [string]$BaseUrl = 'http://localhost:8080',
     [switch]$RunFrontendChecks
 )
 
@@ -100,26 +100,23 @@ $checks = @(
     [PSCustomObject]@{
         Label    = 'Admin'
         Role     = 'admin'
-        Email    = 'admin@rentease.local'
-        Password = 'Admin123!'
+        LoginRole = 'seeker'
+        Email    = 'admin@rentease.test'
+        Password = 'Admin@1234'
     },
     [PSCustomObject]@{
         Label    = 'Owner'
         Role     = 'owner'
-        Email    = 'owner@rentease.local'
-        Password = 'Owner123!'
+        LoginRole = 'owner'
+        Email    = 'landlord@rentease.test'
+        Password = 'Owner@1234'
     },
     [PSCustomObject]@{
         Label    = 'Seeker'
         Role     = 'seeker'
-        Email    = 'seeker@rentease.local'
-        Password = 'Seeker123!'
-    },
-    [PSCustomObject]@{
-        Label    = 'Parent'
-        Role     = 'parent'
-        Email    = 'parent@rentease.local'
-        Password = 'Parent123!'
+        LoginRole = 'seeker'
+        Email    = 'seeker1@rentease.test'
+        Password = 'Seeker@1234'
     }
 )
 
@@ -135,7 +132,7 @@ try {
         $login = Invoke-Api -Endpoint 'auth.php?action=login' -Method 'POST' -Session $session -Body @{
             email    = $entry.Email
             password = $entry.Password
-            role     = $entry.Role
+            role     = $entry.LoginRole
         }
         $testCount++
         Assert-ApiSuccess -Response $login -StepName "$($entry.Label) login (original)"
@@ -190,7 +187,7 @@ try {
         $loginTemp = Invoke-Api -Endpoint 'auth.php?action=login' -Method 'POST' -Session $session -Body @{
             email    = $entry.Email
             password = $tempPassword
-            role     = $entry.Role
+            role     = $entry.LoginRole
         }
         $testCount++
         Assert-ApiSuccess -Response $loginTemp -StepName "$($entry.Label) login (temporary password)"
@@ -222,7 +219,7 @@ try {
         $finalLogin = Invoke-Api -Endpoint 'auth.php?action=login' -Method 'POST' -Session $session -Body @{
             email    = $entry.Email
             password = $entry.Password
-            role     = $entry.Role
+            role     = $entry.LoginRole
         }
         $testCount++
         Assert-ApiSuccess -Response $finalLogin -StepName "$($entry.Label) final login (original password restored)"

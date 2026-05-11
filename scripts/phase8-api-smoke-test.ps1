@@ -1,5 +1,5 @@
 param(
-    [string]$BaseUrl = 'http://localhost/rentease/backend',
+    [string]$BaseUrl = 'http://localhost:8080',
     [switch]$RunFrontendChecks
 )
 
@@ -95,8 +95,9 @@ $checks = @(
     [PSCustomObject]@{
         Label = 'Admin'
         Role = 'admin'
-        Email = 'admin@rentease.local'
-        Password = 'Admin123!'
+        LoginRole = 'seeker'
+        Email = 'admin@rentease.test'
+        Password = 'Admin@1234'
         Endpoints = @(
             'users.php',
             'reports.php',
@@ -109,8 +110,9 @@ $checks = @(
     [PSCustomObject]@{
         Label = 'Owner'
         Role = 'owner'
-        Email = 'owner@rentease.local'
-        Password = 'Owner123!'
+        LoginRole = 'owner'
+        Email = 'landlord@rentease.test'
+        Password = 'Owner@1234'
         Endpoints = @(
             'boarding_house.php',
             'rooms.php',
@@ -123,22 +125,11 @@ $checks = @(
     [PSCustomObject]@{
         Label = 'Seeker'
         Role = 'seeker'
-        Email = 'seeker@rentease.local'
-        Password = 'Seeker123!'
+        LoginRole = 'seeker'
+        Email = 'seeker1@rentease.test'
+        Password = 'Seeker@1234'
         Endpoints = @(
             'rooms.php?availability_status=available',
-            'reservations.php',
-            'payments.php',
-            'feedback.php',
-            'uploads.php'
-        )
-    },
-    [PSCustomObject]@{
-        Label = 'Parent'
-        Role = 'parent'
-        Email = 'parent@rentease.local'
-        Password = 'Parent123!'
-        Endpoints = @(
             'reservations.php',
             'payments.php',
             'feedback.php',
@@ -163,7 +154,7 @@ try {
         $loginResponse = Invoke-Api -Endpoint 'auth.php?action=login' -Method 'POST' -Session $session -Body @{
             email = $entry.Email
             password = $entry.Password
-            role = $entry.Role
+            role = $entry.LoginRole
         }
         $testCount++
         Assert-ApiSuccess -Response $loginResponse -StepName "$($entry.Label) login"
