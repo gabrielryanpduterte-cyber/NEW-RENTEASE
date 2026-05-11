@@ -183,15 +183,17 @@ function handle_login(array $payload): void
     $password = (string)$payload['password'];
     $selectedRole = strtolower(trim((string)($payload['role'] ?? '')));
 
-    if ($selectedRole !== '' && !in_array($selectedRole, ['seeker', 'parent', 'owner'], true)) {
-        json_response(false, 'Validation failed.', new stdClass(), ['role must be seeker, parent, or owner.'], 400);
+    if ($selectedRole !== '' && !in_array($selectedRole, ['seeker', 'parent', 'owner', 'admin'], true)) {
+        json_response(false, 'Validation failed.', new stdClass(), ['role must be seeker, parent, owner, or admin.'], 400);
     }
 
     $query = db()->prepare('SELECT * FROM users WHERE email = :email LIMIT 1');
     $query->execute([':email' => $email]);
     $user = $query->fetch();
     $storedRole = $user ? strtolower((string)($user['role'] ?? '')) : '';
-    $roleMatches = $storedRole === 'admin' || ($selectedRole !== '' && $storedRole === $selectedRole);
+    $roleMatches = $selectedRole === ''
+        ? $storedRole === 'admin'
+        : $storedRole === $selectedRole;
 
     $isValid = $user
         && password_verify($password, (string)$user['password_hash'])

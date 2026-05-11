@@ -11,6 +11,7 @@ const loginRoles = [
   { value: 'seeker', label: 'Seeker' },
   { value: 'parent', label: 'Parent' },
   { value: 'owner', label: 'Landlord' },
+  { value: 'admin', label: 'Admin' },
 ];
 
 function LoginPage() {

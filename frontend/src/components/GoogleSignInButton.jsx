@@ -35,15 +35,12 @@ function GoogleSignInButton({ onSuccess, onError }) {
       });
 
       onSuccess?.(userInfo);
-    } catch (err) {
-      console.error('Google sign-in error:', err);
+    } catch {
       onError?.('Failed to process Google sign-in');
     }
   };
 
   const handleGoogleError = (error) => {
-    console.error('Google OAuth error:', error);
-
     // Check if it's a configuration error
     if (error?.error === 'idpiframe_initialization_failed') {
       onError?.('Google Sign-In is not properly configured. Please check GOOGLE_AUTH_SETUP.md');

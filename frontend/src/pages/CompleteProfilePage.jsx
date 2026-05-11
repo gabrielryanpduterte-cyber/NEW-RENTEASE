@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { apiRequest } from '../api/client.js';
 import { useAuth } from '../auth/useAuth.js';
-import { roleDashboardPath } from '../utils/roles.js';
 import PasswordInput from '../components/PasswordInput.jsx';
+import { roleDashboardPath } from '../utils/roles.js';
 
 function CompleteProfilePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { refreshSession } = useAuth();
-  
+
   const [form, setForm] = useState({
     role: 'seeker',
     contact_number: '',
@@ -19,52 +20,31 @@ function CompleteProfilePage() {
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(true);
 
-  // Get Google user info from navigation state
   const googleUserInfo = location.state?.googleUserInfo;
   const googleCredential = location.state?.googleCredential;
 
   useEffect(() => {
-    // If no Google data, redirect back to login
     if (!googleUserInfo || !googleCredential) {
       navigate('/login', { replace: true });
       return;
     }
 
-    // Try to login with just the token (for existing users)
     const tryAutoLogin = async () => {
       try {
-        console.log('🔍 Attempting auto-login for existing user...');
-        
-        const response = await fetch('/backend/google-auth.php?action=google-auth', {
+        const payload = await apiRequest('google-auth.php?action=google-auth', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
+          body: {
             google_token: googleCredential,
-          }),
+          },
         });
 
-        console.log('📡 Response status:', response.status);
-        const data = await response.json();
-        console.log('📦 Response data:', data);
-
-        if (data.success && data.data.user_id) {
-          // Existing user - logged in successfully
-          console.log('✅ Existing user found! Redirecting to dashboard...');
+        if (payload.success && payload.data?.user_id) {
           await refreshSession();
-          const dashboardPath = roleDashboardPath(data.data.role);
-          console.log('🚀 Redirecting to:', dashboardPath);
-          navigate(dashboardPath, { replace: true });
+          navigate(roleDashboardPath(payload.data.role), { replace: true });
         } else {
-          // New user or error - show form
-          console.log('👤 New user detected. Showing profile form...');
           setChecking(false);
         }
-      } catch (err) {
-        console.error('❌ Auto-login error:', err);
-        // Show form on error
+      } catch {
         setChecking(false);
       }
     };
@@ -72,17 +52,15 @@ function CompleteProfilePage() {
     tryAutoLogin();
   }, [googleUserInfo, googleCredential, navigate, refreshSession]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError('');
 
-    // Validate passwords match
     if (form.password !== form.confirm_password) {
       setError('Passwords do not match.');
       return;
     }
 
-    // Validate password strength
     if (form.password.length < 8) {
       setError('Password must be at least 8 characters long.');
       return;
@@ -91,42 +69,25 @@ function CompleteProfilePage() {
     setSubmitting(true);
 
     try {
-      const response = await fetch('/backend/google-auth.php?action=google-auth', {
+      const payload = await apiRequest('google-auth.php?action=google-auth', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
+        body: {
           google_token: googleCredential,
           role: form.role,
           contact_number: form.contact_number,
           password: form.password,
-        }),
+        },
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-
-      if (data.success) {
-        // User is now registered and logged in automatically by backend
-        // Refresh auth state
+      if (payload.success) {
         await refreshSession();
-        
-        // Redirect to appropriate dashboard
-        const dashboardPath = roleDashboardPath(data.data.role);
-        navigate(dashboardPath, { replace: true });
+        navigate(roleDashboardPath(payload.data.role), { replace: true });
       } else {
-        const errorMsg = data.errors?.[0] || data.message || 'Authentication failed';
-        setError(errorMsg);
+        setError(payload.errors?.[0] || payload.message || 'Authentication failed.');
         setSubmitting(false);
       }
     } catch (err) {
-      console.error('Error during Google auth:', err);
-      setError(err.message || 'Network error. Please try again.');
+      setError(err?.errors?.[0] || err?.message || 'Network error. Please try again.');
       setSubmitting(false);
     }
   };
@@ -153,15 +114,15 @@ function CompleteProfilePage() {
 
           <div className="notice-panel" style={{ marginTop: '1rem' }}>
             <p style={{ fontSize: '0.85rem', lineHeight: '1.5' }}>
-              💡 <strong>Set a password</strong> so you can also login with your email if needed.
+              <strong>Set a password</strong> so you can also login with your email if needed.
             </p>
           </div>
 
           <div className="user-info-preview">
             {googleUserInfo.picture && (
-              <img 
-                src={googleUserInfo.picture} 
-                alt="Profile" 
+              <img
+                src={googleUserInfo.picture}
+                alt="Profile"
                 className="profile-preview-img"
               />
             )}
@@ -176,7 +137,7 @@ function CompleteProfilePage() {
             <select
               id="role"
               value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
+              onChange={(event) => setForm({ ...form, role: event.target.value })}
               required
             >
               <option value="seeker">Room Seeker</option>
@@ -189,7 +150,7 @@ function CompleteProfilePage() {
               id="contact_number"
               type="text"
               value={form.contact_number}
-              onChange={(e) => setForm({ ...form, contact_number: e.target.value })}
+              onChange={(event) => setForm({ ...form, contact_number: event.target.value })}
               placeholder="09XXXXXXXXX"
               pattern="09[0-9]{9}"
               title="Please enter a valid Philippine mobile number (09XXXXXXXXX)"
@@ -200,7 +161,7 @@ function CompleteProfilePage() {
             <PasswordInput
               id="password"
               value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              onChange={(event) => setForm({ ...form, password: event.target.value })}
               placeholder="At least 8 characters"
               minLength={8}
               required
@@ -215,7 +176,7 @@ function CompleteProfilePage() {
             <PasswordInput
               id="confirm_password"
               value={form.confirm_password}
-              onChange={(e) => setForm({ ...form, confirm_password: e.target.value })}
+              onChange={(event) => setForm({ ...form, confirm_password: event.target.value })}
               placeholder="Re-enter your password"
               minLength={8}
               required
@@ -227,7 +188,7 @@ function CompleteProfilePage() {
             )}
             {form.confirm_password && form.password === form.confirm_password && form.password.length >= 8 && (
               <p style={{ fontSize: '0.8rem', color: '#10b981', marginTop: '0.25rem' }}>
-                ✓ Passwords match
+                Passwords match
               </p>
             )}
 
@@ -237,9 +198,9 @@ function CompleteProfilePage() {
               </div>
             )}
 
-            <button 
-              type="submit" 
-              className="button-primary" 
+            <button
+              type="submit"
+              className="button-primary"
               disabled={submitting}
             >
               {submitting ? 'Completing Registration...' : 'Complete Registration'}
@@ -247,12 +208,12 @@ function CompleteProfilePage() {
           </form>
 
           <p className="back-link">
-            <button 
-              type="button" 
-              onClick={() => navigate('/login')} 
+            <button
+              type="button"
+              onClick={() => navigate('/login')}
               className="text-button"
             >
-              ← Back to Login
+              Back to Login
             </button>
           </p>
         </div>

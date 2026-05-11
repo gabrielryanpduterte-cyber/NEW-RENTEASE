@@ -61,11 +61,12 @@ function AddPropertyPage() {
     try {
       // Simulate API call - replace with actual API
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      console.log('Property Data:', formData);
-      console.log('Images:', images);
-      
-      setSuccess('Property added successfully!');
+
+      setSuccess(
+        images.length > 0
+          ? `Property added successfully with ${images.length} image${images.length === 1 ? '' : 's'}!`
+          : 'Property added successfully!'
+      );
       
       // Reset form after 2 seconds
       setTimeout(() => {
