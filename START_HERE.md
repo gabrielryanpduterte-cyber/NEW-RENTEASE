@@ -1,63 +1,59 @@
-# 🚀 START HERE - RENTEASE Quick Setup
+# START HERE - RentEase Docker Setup
 
-## ⚡ Get Running in 3 Steps
+## Get Running
 
-### Step 1: Run Setup (2 minutes)
+From the repo root:
 
 ```powershell
-# Open PowerShell as Administrator
 cd "C:\Users\gabri\OneDrive\Desktop\NEW RENTEASE"
-
-# Run setup
-.\scripts\setup.ps1
+Set-ExecutionPolicy -Scope Process Bypass
+.\scripts\docker-dev.ps1
 ```
 
-### Step 2: Start Services (1 minute)
+Or with Docker Compose directly:
 
-1. **Start XAMPP as Administrator**
-   - Right-click `C:\xampp\xampp-control.exe`
-   - Select "Run as administrator"
-   - Click **Start** for Apache
-   - Click **Start** for MySQL
+```powershell
+docker compose up --build
+```
 
-2. **Start Frontend**
-   ```bash
-   cd frontend
-   npm run dev
-   ```
+Open the app:
 
-### Step 3: Access Application (30 seconds)
+```text
+http://localhost:5173
+```
 
-Open browser: **http://localhost:5173**
+Backend status:
 
-Login with:
-- Admin: `admin@rentease.local` / `Admin123!`
-- Owner: `owner@rentease.local` / `Owner123!`
-- Seeker: `seeker@rentease.local` / `Seeker123!`
-- Parent: `parent@rentease.local` / `Parent123!`
+```text
+http://localhost:8080
+http://localhost:8080/ping.php
+```
 
----
+## Seeded Login Accounts
 
-## 🔧 Having Issues?
+- Admin: `admin@rentease.test` / `Admin@1234`
+- Landlord: `landlord@rentease.test` / `Owner@1234`
+- Seeker 1: `seeker1@rentease.test` / `Seeker@1234`
+- Seeker 2: `seeker2@rentease.test` / `Seeker@1234`
 
-### MySQL Won't Start?
-→ Read `MYSQL_SIMPLE_FIX.md`
+Admin access is hidden from the sign-in role buttons. Use the admin email/password and the app redirects to the admin dashboard.
 
-### Page Stuck Loading?
-→ Read `LOADING_ISSUE_FIX.md`
+## Useful Commands
 
-### Need Full Guide?
-→ Read `README.md`
+```powershell
+docker compose ps
+docker compose logs backend
+docker compose logs frontend
+docker compose logs mysql
+.\scripts\docker-dev.ps1 -Stop
+.\scripts\docker-dev.ps1 -ResetDatabase
+```
 
----
+## Tests
 
-## 📚 Documentation
-
-- `README.md` - Full project overview
-- `PROJECT_STRUCTURE.md` - File organization
-- `MYSQL_SIMPLE_FIX.md` - MySQL troubleshooting
-- `docs/DEFENSE_RUNBOOK.md` - Feature walkthrough
-
----
-
-**That's it! You're ready to use RENTEASE!** 🎉
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\phase8-api-smoke-test.ps1
+powershell -ExecutionPolicy Bypass -File scripts\phase9-account-smoke-test.ps1
+powershell -ExecutionPolicy Bypass -File scripts\phase10-onboarding-smoke-test.ps1
+powershell -ExecutionPolicy Bypass -File scripts\pre-deployment-test.ps1
+```

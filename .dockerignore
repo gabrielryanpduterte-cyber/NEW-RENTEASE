@@ -1,0 +1,10 @@
+.git
+.idea
+.amazonq
+frontend/node_modules
+frontend/dist
+backend/vendor
+backend/storage
+*.log
+*.docx
+docker-compose.override.yml

@@ -2,7 +2,7 @@
 # Comprehensive testing before deployment
 
 param(
-    [string]$BackendUrl = "http://localhost/rentease/backend",
+    [string]$BackendUrl = "http://localhost:8080",
     [string]$FrontendUrl = "http://localhost:5173"
 )
 
@@ -42,31 +42,47 @@ function Test-ApiEndpoint {
         [int]$ExpectedStatus = 200
     )
     
+    $params = @{
+        Uri = $Url
+        Method = $Method
+        UseBasicParsing = $true
+        ErrorAction = "Stop"
+        TimeoutSec = 15
+    }
+
+    if ($Method -eq "POST") {
+        $params.Body = ($Body | ConvertTo-Json)
+        $params.ContentType = "application/json"
+    }
+
     try {
-        $params = @{
-            Uri = $Url
-            Method = $Method
-            UseBasicParsing = $true
-            ErrorAction = "Stop"
-        }
-        
-        if ($Method -eq "POST" -and $Body.Count -gt 0) {
-            $params.Body = ($Body | ConvertTo-Json)
-            $params.ContentType = "application/json"
-        }
-        
         $response = Invoke-WebRequest @params
-        
+        $statusCode = [int]$response.StatusCode
+
         return @{
-            Success = ($response.StatusCode -eq $ExpectedStatus)
-            StatusCode = $response.StatusCode
+            Success = ($statusCode -eq $ExpectedStatus)
+            StatusCode = $statusCode
             Content = $response.Content
         }
     } catch {
+        $response = $_.Exception.Response
+        $statusCode = 0
+        $content = $_.Exception.Message
+
+        if ($response) {
+            $statusCode = [int]$response.StatusCode
+            try {
+                $reader = New-Object System.IO.StreamReader($response.GetResponseStream())
+                $content = $reader.ReadToEnd()
+            } catch {
+                $content = $_.Exception.Message
+            }
+        }
+
         return @{
-            Success = $false
-            StatusCode = $_.Exception.Response.StatusCode.value__
-            Content = $_.Exception.Message
+            Success = ($statusCode -eq $ExpectedStatus)
+            StatusCode = $statusCode
+            Content = $content
         }
     }
 }
@@ -187,14 +203,20 @@ try {
 }
 
 # Test security headers
+$securityResponse = $null
 try {
-    $response = Invoke-WebRequest -Uri "$BackendUrl/auth.php?action=me" -UseBasicParsing
-    $hasXContentType = $response.Headers["X-Content-Type-Options"] -eq "nosniff"
-    $hasXFrame = $response.Headers["X-Frame-Options"] -eq "DENY"
-    
+    $securityResponse = Invoke-WebRequest -Uri "$BackendUrl/auth.php?action=me" -UseBasicParsing -ErrorAction Stop
+} catch {
+    $securityResponse = $_.Exception.Response
+}
+
+if ($securityResponse) {
+    $hasXContentType = $securityResponse.Headers["X-Content-Type-Options"] -eq "nosniff"
+    $hasXFrame = $securityResponse.Headers["X-Frame-Options"] -eq "DENY"
+
     Add-TestResult "Security" "X-Content-Type-Options header" $hasXContentType
     Add-TestResult "Security" "X-Frame-Options header" $hasXFrame
-} catch {
+} else {
     Add-TestResult "Security" "Security headers" $false
 }
 
@@ -202,7 +224,7 @@ try {
 $result = Test-ApiEndpoint -Url "$BackendUrl/auth.php?action=login" -Method "POST" -Body @{
     email = "admin' OR '1'='1"
     password = "password"
-    role = "admin"
+    role = "seeker"
 } -ExpectedStatus 401
 Add-TestResult "Security" "SQL injection prevention" $result.Success
 
@@ -243,6 +265,7 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $backendFiles = @(
     "backend\config.php",
     "backend\helpers.php",
+    "backend\index.php",
     "backend\auth.php",
     "backend\users.php",
     "backend\boarding_house.php",
@@ -279,7 +302,8 @@ foreach ($file in $frontendFiles) {
 
 # Check database files
 $databaseFiles = @(
-    "database\rentease_final_phase7.sql",
+    "database\rentease_base_schema.sql",
+    "database\staging_seed.sql",
     "database\phase8_uploads_schema.sql",
     "database\phase10_parent_seeker_links_schema.sql"
 )

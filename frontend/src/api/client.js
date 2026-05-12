@@ -90,11 +90,16 @@ async function parseApiResponse(response) {
   try {
     return normalizeApiPayload(JSON.parse(text));
   } catch {
+    const contentType = response.headers.get('content-type') || 'unknown content type';
+    const preview = text.replace(/\s+/g, ' ').trim().slice(0, 160);
     return {
       success: false,
-      message: 'Invalid server response.',
+      message: 'Backend returned a non-JSON response.',
       data: {},
-      errors: ['Response was not valid JSON.'],
+      errors: [
+        `Expected JSON but received ${contentType}. Check Docker backend logs.`,
+        ...(preview ? [`Response preview: ${preview}`] : []),
+      ],
     };
   }
 }
@@ -161,7 +166,7 @@ export async function apiRequest(endpoint, options = {}) {
       throw new ApiError(
         'Request timeout - backend not responding.',
         0,
-        ['Request took longer than ' + (timeout / 1000) + ' seconds. Check XAMPP Apache is running.'],
+        ['Request took longer than ' + (timeout / 1000) + ' seconds. Check Docker backend is running.'],
         { endpoint, method },
       );
     }
@@ -169,7 +174,7 @@ export async function apiRequest(endpoint, options = {}) {
     throw new ApiError(
       'Unable to reach backend server.',
       0,
-      [error?.message || 'Check API base URL, Vite proxy, and XAMPP status.'],
+      [error?.message || 'Check API base URL, Vite proxy, and Docker container status.'],
       { endpoint, method },
     );
   }

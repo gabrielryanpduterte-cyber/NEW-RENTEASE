@@ -1,5 +1,5 @@
 param(
-    [string]$BaseUrl = 'http://localhost/rentease/backend',
+    [string]$BaseUrl = 'http://localhost:8080',
     [switch]$RunFrontendChecks
 )
 
